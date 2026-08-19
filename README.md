@@ -7,6 +7,16 @@ Copyright (c) 2026 Amans2bmm. All rights reserved. See [LICENSE](LICENSE) —
 this is proprietary software published for review, not for reuse.
 
 ---
+## Screenshots
+
+**Sector breadth** — 4 broad indices and 14 sectors against a selectable EMA, with regime classification and a turnover panel.
+![Sector breadth](screenshots/breadth.png)
+
+**Vol. Liquidity tab** — volume-weighted support/resistance zones with flow confirmation (sweep-and-reclaim, anchored VWAP bands, HVN/POC confluence).
+![Liquidity map](screenshots/liquidity.png)
+
+**F&O positioning** — futures buildup crossed with option flow, showing the full classification reasoning behind each verdict rather than a single number.
+![F&O positioning](screenshots/oi.png)
 
 ## What it is
 
