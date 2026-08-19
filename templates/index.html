@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sector Breadth — Live</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:28px 20px 60px;}
+  .wrap{max-width:880px;margin:0 auto;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:10px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:30px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 22px;}
+  .summary{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:26px;}
+  .cell{background:var(--panel);padding:16px 18px;}
+  .cell .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-family:'JetBrains Mono',monospace;}
+  .cell .big{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:26px;}
+  .cell.up .big{color:var(--up);} .cell.down .big{color:var(--down);}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  thead th{text-align:left;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 14px;border-bottom:1px solid var(--border);font-weight:500;}
+  thead th.num{text-align:right;}
+  tbody td{padding:10px 14px;border-bottom:1px solid #1E2327;font-size:13.5px;font-family:'JetBrains Mono',monospace;}
+  tbody td.name{font-family:'Inter',sans-serif;font-weight:500;}
+  tbody td.num{text-align:right;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr.clickable{cursor:pointer;}
+  tbody tr.clickable:hover{background:#1B2024;}
+  tbody td.name .arrow{color:var(--muted);font-family:'Inter',sans-serif;margin-left:6px;}
+  .status{font-weight:700;}
+  .status.up{color:var(--up);} .status.down{color:var(--down);}
+  .refresh{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;cursor:pointer;margin-bottom:18px;}
+  .refresh:hover{border-color:var(--muted);}
+  .loading, .error{color:var(--muted);font-size:13px;padding:16px 0;}
+  .error{color:var(--down);}
+  .hint{color:var(--muted);font-size:12px;margin-top:12px;}
+  .controls-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+  .ema-select{display:flex;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:4px;}
+  .ema-btn{font-family:'JetBrains Mono',monospace;font-size:12px;background:transparent;border:none;color:var(--muted);padding:7px 13px;border-radius:6px;cursor:pointer;}
+  .ema-btn:hover{color:var(--text);}
+  .ema-btn.active{background:var(--text);color:var(--bg);font-weight:700;}
+  .panel-head{display:flex;align-items:baseline;gap:10px;margin:0 0 10px;flex-wrap:wrap;}
+  .panel-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;}
+  .panel-note{color:var(--muted);font-size:12px;}
+  .vol-panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px 10px;margin-bottom:28px;}
+  .vrow{display:grid;grid-template-columns:140px 1fr 96px;align-items:center;gap:12px;padding:7px 0;cursor:pointer;}
+  .vrow:hover .vname{color:#fff;}
+  .vname{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .vtrack{height:14px;background:#1E2327;border-radius:4px;overflow:hidden;}
+  .vfill{height:100%;background:linear-gradient(90deg,#E8B84B,#E89A4B);border-radius:4px;}
+  .vfill.rank2{background:linear-gradient(90deg,#9B7BFF,#7B5BDF);}
+  .vfill.rest{background:#3A4148;}
+  .vval{font-family:'JetBrains Mono',monospace;font-size:12px;text-align:right;color:var(--muted);}
+  .vval b{color:var(--text);font-weight:600;}
+  .staleband{background:#1A1206;border:1px solid #3D2E10;border-left:3px solid var(--amber);
+    border-radius:7px;padding:9px 13px;margin-bottom:12px;color:#D7C9A8;font-size:11.5px;line-height:1.6;}
+  .staleband b{color:#F0DFB8;}
+  .partial{color:var(--amber);font-weight:700;cursor:help;}
+  td.syn .dv{color:#9B7BFF;font-weight:600;}
+  td.fut .dv{color:#4BC8E8;font-weight:600;}
+  .dsub{display:block;font-size:10.5px;font-weight:600;margin-top:1px;}
+  .dsub.up{color:var(--up);} .dsub.down{color:var(--down);}
+  .pending{color:#3A4148;}
+  .na{color:#3A4148;}
+  .topnav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px;}
+  .nav{display:inline-flex;align-items:center;gap:9px;flex:1 1 0;min-width:172px;
+    font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;
+    background:var(--panel);border:1px solid var(--border);color:var(--muted);
+    text-decoration:none;padding:12px 15px;border-radius:9px;white-space:nowrap;
+    transition:border-color .15s,color .15s,background .15s;}
+  .nav:hover{color:var(--text);border-color:#3A424A;background:#171C21;}
+  .nav .ic{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+  .ic-flow{background:#E8B84B;} .ic-wema{background:#9B7BFF;} .ic-oil{background:#4BC8E8;} .ic-oi{background:#33D17A;}
+  .nav::after{content:'\2192';margin-left:auto;opacity:.4;font-size:13px;}
+  .nav:hover::after{opacity:.85;}
+  @media(max-width:640px){ .nav{flex:1 1 100%;} }
+
+  .regime{border:1px solid var(--border);border-radius:12px;padding:17px 20px;margin-bottom:20px;background:var(--panel);}
+  .regime.bull{border-left:3px solid var(--up);}
+  .regime.bear{border-left:3px solid var(--down);}
+  .regime.neut{border-left:3px solid var(--amber);}
+  .rhead{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;margin-bottom:5px;}
+  .regime.bull .rhead{color:var(--up);}
+  .regime.bear .rhead{color:var(--down);}
+  .regime.neut .rhead{color:var(--amber);}
+  .rsplit{display:flex;height:26px;border-radius:6px;overflow:hidden;margin:13px 0 9px;background:var(--border);}
+  .rsplit div{display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;}
+  .rsplit .sb{background:#33D17A;color:#06210F;}
+  .rsplit .sn{background:#E8B84B;color:#2A1F05;}
+  .rsplit .sr{background:#F0554B;color:#2A0906;}
+  .rlegend{display:flex;gap:18px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+  .rlegend span b{font-weight:700;}
+  .rlegend .kb b{color:var(--up);} .rlegend .kn b{color:var(--amber);} .rlegend .kr b{color:var(--down);}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow"><span>MARKET BREADTH · LIVE VIA KITE CONNECT</span><span id="asof">—</span></div>
+  <h1>Sector Breadth</h1>
+  <p class="sub" id="subline">NSE sector indices vs 200 EMA. Click a sector to see its stocks vs 10/21/50 EMA.</p>
+
+  <nav class="topnav">
+    <a class="nav" href="/flow"><span class="ic ic-flow"></span>Rotation &amp; catalysts</a>
+    <a class="nav" href="/wema"><span class="ic ic-wema"></span>200-week EMA scan</a>
+    <a class="nav" href="/oi"><span class="ic ic-oi"></span>F&amp;O positioning</a>
+    <a class="nav" href="/energy"><span class="ic ic-oil"></span>Crude vs gas</a>
+  </nav>
+
+  <div class="controls-row">
+    <button class="refresh" onclick="load(); loadVolume();" style="margin-bottom:0;">↻ Refresh</button>
+    <div class="ema-select" id="emaSelect">
+      <button class="ema-btn" data-span="10">10 EMA</button>
+      <button class="ema-btn" data-span="21">21 EMA</button>
+      <button class="ema-btn" data-span="50">50 EMA</button>
+      <button class="ema-btn" data-span="100">100 EMA</button>
+      <button class="ema-btn active" data-span="200">200 EMA</button>
+    </div>
+  </div>
+
+  <div id="regime"></div>
+
+  <div class="summary">
+    <div class="cell"><div class="label">Sector breadth</div><div class="big" id="breadthPct">—</div></div>
+    <div class="cell up"><div class="label" id="labelUp">Above 200 EMA</div><div class="big" id="countUp">0</div></div>
+    <div class="cell down"><div class="label" id="labelDown">Below 200 EMA</div><div class="big" id="countDown">0</div></div>
+  </div>
+
+  <div class="panel-head">
+    <span class="panel-title">Where the money is today</span>
+    <span class="panel-note">Traded value across each sector index's constituents</span>
+  </div>
+  <div class="vol-panel" id="volPanel">
+    <div class="loading">Calculating sector turnover…</div>
+  </div>
+
+  <div class="panel-head">
+    <span class="panel-title">Broad market</span>
+    <span class="panel-note">Nifty 50, Bank Nifty, Midcap 50, Smallcap 50 · synthetic and future shown where index options trade</span>
+  </div>
+  <table style="margin-bottom:28px;">
+    <thead><tr>
+      <th>Index</th><th class="num">Spot</th>
+      <th class="num">Synthetic</th><th class="num">Future</th>
+      <th class="num broadEmaHeader">200 EMA</th><th class="num">% vs EMA</th>
+    </tr></thead>
+    <tbody id="broadBody"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+  </table>
+
+  <div class="panel-head">
+    <span class="panel-title">Sector indices</span>
+    <span class="panel-note">Click a row for its stock quality scan</span>
+  </div>
+  <table>
+    <thead><tr><th>Sector index</th><th class="num">Spot</th><th class="num broadEmaHeader">200 EMA</th><th class="num">% vs EMA</th></tr></thead>
+    <tbody id="tbody"><tr><td colspan="4" class="loading">Loading…</td></tr></tbody>
+  </table>
+  <p class="hint">Click any row to open its stock-level breadth. An amber <span class="partial">*</span> means that index has less history than the selected EMA period, so the EMA hasn't fully warmed up — read it as indicative.</p>
+</div>
+
+<script>
+let currentSpan = 200;
+
+document.getElementById('emaSelect').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.ema-btn');
+  if(!btn) return;
+  currentSpan = parseInt(btn.dataset.span, 10);
+  document.querySelectorAll('.ema-btn').forEach(b=>b.classList.toggle('active', b===btn));
+  load();
+});
+
+// Sectors within 1.5% of the EMA are treated as neutral rather than forced
+// into a side — a sector sitting on the line is genuinely undecided, and
+// counting it as bullish or bearish overstates how clean the picture is.
+const NEUTRAL_BAND = 1.5;
+
+function renderRegime(sectors){
+  const el = document.getElementById('regime');
+  if(!sectors.length){ el.innerHTML = ''; return; }
+
+  const bull = sectors.filter(s => s.pct_diff >  NEUTRAL_BAND);
+  const bear = sectors.filter(s => s.pct_diff < -NEUTRAL_BAND);
+  const neut = sectors.filter(s => Math.abs(s.pct_diff) <= NEUTRAL_BAND);
+  const n = sectors.length;
+  const pB = Math.round(bull.length/n*100);
+  const pR = Math.round(bear.length/n*100);
+  const pN = 100 - pB - pR;
+
+  let cls, head;
+  if(pB >= 70){
+    cls='bull'; head=`Broadly bullish — ${pB}% of sectors trending above the ${currentSpan} EMA`;
+  }else if(pB >= 50){
+    cls='bull'; head=`Leaning bullish — ${pB}% of sectors above the ${currentSpan} EMA`;
+  }else if(pR >= 70){
+    cls='bear'; head=`Broadly bearish — ${pR}% of sectors below the ${currentSpan} EMA`;
+  }else if(pR >= 50){
+    cls='bear'; head=`Leaning bearish — ${pR}% of sectors below the ${currentSpan} EMA`;
+  }else{
+    cls='neut'; head=`Mixed — no clear side (${pB}% bullish, ${pR}% bearish)`;
+  }
+
+  el.innerHTML = `<div class="regime ${cls}">
+    <div class="rhead">${head}</div>
+    <div class="rsplit">
+      ${pB > 6 ? `<div class="sb" style="width:${pB}%">${pB}% BULLISH</div>` : ''}
+      ${pN > 6 ? `<div class="sn" style="width:${pN}%">${pN}% NEUTRAL</div>` : ''}
+      ${pR > 6 ? `<div class="sr" style="width:${pR}%">${pR}% BEARISH</div>` : ''}
+    </div>
+    <div class="rlegend">
+      <span class="kb"><b>${bull.length}</b> bullish · &gt;${NEUTRAL_BAND}% above</span>
+      <span class="kn"><b>${neut.length}</b> neutral · within ±${NEUTRAL_BAND}%</span>
+      <span class="kr"><b>${bear.length}</b> bearish · &gt;${NEUTRAL_BAND}% below</span>
+    </div>
+  </div>`;
+}
+
+async function load(){
+  const tbody = document.getElementById('tbody');
+  const broadBody = document.getElementById('broadBody');
+  tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading…</td></tr>';
+  broadBody.innerHTML = '<tr><td colspan="4" class="loading">Loading…</td></tr>';
+
+  document.getElementById('subline').textContent = `Broad and sector indices vs ${currentSpan} EMA. Click a row to see its stock quality scan.`;
+  document.getElementById('labelUp').textContent = `Above ${currentSpan} EMA`;
+  document.getElementById('labelDown').textContent = `Below ${currentSpan} EMA`;
+  document.querySelectorAll('.broadEmaHeader').forEach(h => h.textContent = `${currentSpan} EMA`);
+
+  try{
+    const res = await fetch(`/api/breadth?span=${currentSpan}`);
+    if(res.status === 401){
+      window.location.href = '/login';
+      return;
+    }
+    const data = await res.json();
+    document.getElementById('asof').textContent = 'AS OF ' + data.as_of;
+
+    // Breadth summary counts sector indices only — broad indices would skew it
+    const sectorRows = data.sectors.filter(s => s.group !== 'broad');
+    const broadRows  = data.sectors.filter(s => s.group === 'broad');  // API order: Nifty, Bank, Mid, Small
+
+    const valid = sectorRows.filter(s => !s.error);
+    const up = valid.filter(s => s.above).length;
+    const down = valid.filter(s => !s.above).length;
+    document.getElementById('countUp').textContent = up;
+    document.getElementById('countDown').textContent = down;
+    const pct = valid.length ? Math.round(up/valid.length*100) : null;
+    document.getElementById('breadthPct').textContent = pct !== null ? pct+'%' : '—';
+    renderRegime(valid);
+
+    const renderRows = (rows, wide) => rows.map(s => {
+      const span = wide ? 5 : 3;
+      if(s.error){
+        return `<tr><td class="name">${s.name}</td><td colspan="${span}" class="error">${s.error}</td></tr>`;
+      }
+      const cls = s.above ? 'up' : 'down';
+      const sign = s.pct_diff >= 0 ? '+' : '';
+      const partial = s.partial
+        ? ` <span class="partial" title="Only ${s.sessions} sessions of history — EMA not fully warmed up">*</span>`
+        : '';
+      // synthetic/future cells are filled in later by loadDerived(); only
+      // Nifty and Bank Nifty have index options, the rest stay blank
+      const extra = wide
+        ? `<td class="num syn" data-key="${s.key}"><span class="pending">·</span></td>
+           <td class="num fut" data-key="${s.key}"><span class="pending">·</span></td>`
+        : '';
+      return `<tr class="clickable" onclick="window.location.href='/stocks/${s.key}'">
+        <td class="name">${s.name}<span class="arrow">→</span></td>
+        <td class="num">${s.ltp}</td>
+        ${extra}
+        <td class="num">${s.ema}${partial}</td>
+        <td class="num status ${cls}">${sign}${s.pct_diff}%</td>
+      </tr>`;
+    }).join('');
+
+    broadBody.innerHTML = renderRows(broadRows, true);
+    tbody.innerHTML = renderRows(sectorRows, false);
+    loadDerived();
+  }catch(e){
+    tbody.innerHTML = `<tr><td colspan="4" class="error">Failed to load: ${e.message}</td></tr>`;
+    broadBody.innerHTML = '';
+  }
+}
+// Option chains take a couple of seconds, so these load after the table is
+// already on screen rather than holding it up.
+async function loadDerived(){
+  const cells = document.querySelectorAll('td.syn, td.fut');
+  if(!cells.length) return;
+  try{
+    const res = await fetch('/api/synthetic');
+    if(!res.ok) throw new Error('unavailable');
+    const d = await res.json();
+    const byKey = {};
+    (d.indices || []).forEach(ix => {
+      if(ix.display === 'NIFTY 50') byKey['nifty-50'] = ix;
+      if(ix.display === 'NIFTY BANK') byKey['nifty-bank'] = ix;
+    });
+    document.querySelectorAll('td.syn').forEach(td=>{
+      const ix = byKey[td.dataset.key];
+      const v = ix && ix.synthetic && ix.synthetic.consensus;
+      if(!v){ td.innerHTML = '<span class="na">—</span>'; return; }
+      const diff = ix.synthetic.consensus_vs_spot;
+      td.innerHTML = `<span class="dv">${v.toLocaleString('en-IN')}</span>
+        <span class="dsub ${diff>=0?'up':'down'}">${diff>=0?'+':''}${diff}</span>`;
+    });
+    document.querySelectorAll('td.fut').forEach(td=>{
+      const ix = byKey[td.dataset.key];
+      const f = ix && ix.future;
+      if(!f){ td.innerHTML = '<span class="na">—</span>'; return; }
+      td.innerHTML = `<span class="dv">${f.price.toLocaleString('en-IN')}</span>
+        <span class="dsub ${f.basis>=0?'up':'down'}">${f.basis>=0?'+':''}${f.basis}</span>`;
+    });
+  }catch(e){
+    document.querySelectorAll('td.syn, td.fut').forEach(td=>td.innerHTML='<span class="na">—</span>');
+  }
+}
+
+async function loadVolume(){
+  const panel = document.getElementById('volPanel');
+  panel.innerHTML = '<div class="loading">Calculating sector turnover…</div>';
+  try{
+    const res = await fetch('/api/sector-volume');
+    if(res.status === 401){ window.location.href = '/login'; return; }
+    const raw = await res.text();
+    let data;
+    try{
+      data = JSON.parse(raw);
+    }catch(parseErr){
+      panel.innerHTML = `<div class="error">Server returned an error page instead of data. Check the Command Prompt window for the traceback.</div>`;
+      return;
+    }
+    if(data.error){
+      panel.innerHTML = `<div class="error">${data.error}</div>`;
+      return;
+    }
+    const rows = data.sectors.filter(s => s.turnover > 0);
+    if(rows.length === 0){
+      panel.innerHTML = `<div class="loading" style="line-height:1.8;">
+        No turnover data available.<br><br>
+        ${data.market_open === false
+          ? 'The market is closed, so nothing has traded today. The fallback to the last published session also returned nothing — that file may not be available yet.'
+          : 'Neither live volume nor the last published session returned usable data.'}
+      </div>`;
+      return;
+    }
+    const max = rows[0].turnover;
+    const stale = (data.is_live === false && data.data_date)
+      ? `<div class="staleband">Showing <b>${data.data_date}</b> — the last completed session. Live volume is unavailable${data.market_open === false ? ' because the market is closed' : ''}.</div>`
+      : '';
+    panel.innerHTML = stale + rows.map((s,i)=>{
+      const w = Math.max(2, s.turnover / max * 100);
+      const cls = i === 0 ? '' : (i === 1 ? 'rank2' : 'rest');
+      return `<div class="vrow" onclick="window.location.href='/stocks/${s.key}'">
+        <div class="vname">${s.name}</div>
+        <div class="vtrack"><div class="vfill ${cls}" style="width:${w}%"></div></div>
+        <div class="vval"><b>₹${s.turnover_cr.toLocaleString('en-IN')}</b> Cr</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    panel.innerHTML = `<div class="error">Turnover unavailable: ${e.message}</div>`;
+  }
+}
+
+load();
+loadVolume();
+</script>
+
+{{ OWNER_FOOTER|safe }}
+
+</body>
+</html>

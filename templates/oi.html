@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F&O Positioning — Open Interest</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B;
+    --amber:#E8B84B; --violet:#9B7BFF; --cyan:#4BC8E8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:26px 18px 70px;}
+  .wrap{max-width:1240px;margin:0 auto;}
+  .back{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:12px;}
+  .back:hover{color:var(--text);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 18px;max-width:720px;line-height:1.6;}
+
+  .caveat{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--amber);
+    border-radius:10px;padding:15px 18px;margin-bottom:20px;font-size:12.5px;color:var(--muted);line-height:1.75;}
+  .caveat b{color:var(--text);}
+
+  .ctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+  .btn{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);
+    color:var(--text);padding:9px 14px;border-radius:8px;cursor:pointer;}
+  .btn:hover{border-color:var(--muted);}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--panel);border:1px solid var(--border);
+    color:var(--muted);padding:8px 13px;border-radius:20px;cursor:pointer;}
+  .chip:hover{color:var(--text);}
+  .chip.active{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:700;}
+  .chip .cnt{opacity:.55;margin-left:4px;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:15px 18px;margin-bottom:11px;}
+  .card.bull{border-left:3px solid var(--up);}
+  .card.bear{border-left:3px solid var(--down);}
+  .card.neut{border-left:3px solid var(--muted);}
+  .card.capped{border-left:3px solid var(--amber);}
+  .card.idx{background:#12171C;border-color:#2E3740;}
+  .idxbadge{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.08em;
+    background:#4BC8E822;color:var(--cyan);padding:3px 8px;border-radius:4px;margin-left:10px;vertical-align:middle;}
+  .idxnote{margin-top:9px;padding:10px 13px;border-radius:7px;background:#131A1F;
+    border-left:2px solid var(--cyan);font-size:11.5px;color:var(--muted);line-height:1.7;}
+  .idxnote b{color:var(--text);}
+  .top{display:grid;grid-template-columns:150px 1fr auto;gap:14px;align-items:center;}
+  .sym{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;}
+  .sym a.symlink{color:var(--text);text-decoration:none;border-bottom:1px dotted #3A4148;}
+  .sym a.symlink:hover{color:var(--amber);border-bottom-color:var(--amber);}
+  .sympx{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .tag{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;letter-spacing:.02em;}
+  .t-bull{background:#33D17A22;color:var(--up);}
+  .t-bear{background:#F0554B22;color:var(--down);}
+  .t-neut{background:#8B949C22;color:var(--muted);}
+  .t-cap{background:#E8B84B22;color:var(--amber);}
+  .t-flow{background:#9B7BFF22;color:var(--violet);}
+  .t-src{background:#4BC8E822;color:var(--cyan);}
+  .nums{display:flex;gap:18px;font-family:'JetBrains Mono',monospace;font-size:11.5px;text-align:right;}
+  .nums div span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+  .pos{color:var(--up);} .neg{color:var(--down);} .neu{color:var(--muted);}
+  .struct{margin-top:11px;padding-top:11px;border-top:1px solid #1E2327;font-size:12.5px;color:var(--muted);line-height:1.7;}
+  .struct b{color:var(--text);}
+  .sname{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;color:var(--text);margin-right:6px;}
+  .rfr{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--panel2);
+    border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:6px;
+    cursor:pointer;margin-left:9px;vertical-align:middle;line-height:1.2;}
+  .rfr:hover{border-color:var(--amber);color:var(--amber);}
+  .rfr:disabled{opacity:.5;cursor:wait;}
+  .rfr.done{border-color:#33D17A55;color:var(--up);}
+  .rfr.fail{border-color:#F0554B55;color:var(--down);}
+  .retrow{display:flex;flex-wrap:wrap;gap:16px;margin-top:7px;}
+  .retwin{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);}
+  .retlbl{display:block;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#5C666E;margin-bottom:2px;}
+  .archnote{display:none;background:var(--panel);border:1px solid var(--border);
+    border-left:2px solid var(--violet);border-radius:0 10px 10px 0;padding:11px 15px;
+    margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.7;}
+  .archnote b{color:var(--text);}
+  .archnote.ready{border-left-color:var(--up);}
+  .archnote.bad{border-left-color:var(--down);}
+  .archnote.bad b{color:var(--down);}
+  .retbad{color:#6B7480;font-style:italic;cursor:help;border-bottom:1px dotted #3A4148;}
+  .retnote{font-size:10.5px;color:#5C666E;line-height:1.6;margin-top:7px;}
+  .trendline{margin-top:9px;padding-top:9px;border-top:1px solid #1E2327;font-size:12px;color:var(--muted);line-height:1.65;}
+  .trendline b{color:var(--text);}
+  .struct.nodata{color:#6E7880;font-style:italic;}
+  .expsig{margin-top:11px;padding:12px 15px;border-radius:8px;border-left:3px solid var(--muted);background:#161B20;}
+  .expsig.sig-bull{border-left-color:var(--up);}
+  .expsig.sig-bear{border-left-color:var(--down);}
+  .expsig.sig-mixed{border-left-color:var(--amber);background:#1A1206;}
+  .expsig-head{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;margin-bottom:5px;}
+  .sig-bull .expsig-head{color:var(--up);}
+  .sig-bear .expsig-head{color:var(--down);}
+  .sig-mixed .expsig-head{color:var(--amber);}
+  .expsig-w{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:400;color:var(--muted);margin-left:10px;}
+  .expsig-why{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:4px;}
+  .expsig-note{font-size:12px;color:var(--muted);line-height:1.65;}
+  .expsig-bits{font-family:'JetBrains Mono',monospace;font-size:10px;color:#5C666E;margin-top:7px;}
+  .verdict{margin-top:11px;padding:11px 14px;border-radius:8px;border-left:3px solid var(--muted);background:#171C21;}
+  .verdict.v-arb{border-left-color:var(--amber);background:#1A1206;}
+  .verdict.v-bull{border-left-color:var(--up);}
+  .verdict.v-bear{border-left-color:var(--down);}
+  .vhead{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;margin-bottom:4px;}
+  .verdict.v-arb .vhead{color:var(--amber);}
+  .verdict.v-bull .vhead{color:var(--up);}
+  .verdict.v-bear .vhead{color:var(--down);}
+  .vconf{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--muted);font-weight:400;margin-left:9px;}
+  .vnote{font-size:12.5px;color:var(--muted);line-height:1.7;}
+  .vbits{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6E7880;margin-top:6px;}
+  .expy{font-family:'JetBrains Mono',monospace;font-size:10px;color:#5C666E;margin-top:3px;}
+  .roll{margin-top:9px;padding:9px 12px;border-radius:7px;background:#171C21;border-left:2px solid var(--muted);
+    font-size:11.5px;color:var(--muted);line-height:1.65;}
+  .roll b{color:var(--text);}
+  .roll.warn{background:#1A1206;border-left-color:var(--amber);color:#D7C9A8;}
+  .roll.warn b{color:#F0DFB8;}
+  details.strikes{margin-top:10px;border-top:1px solid #1E2327;padding-top:9px;}
+  details.strikes summary{cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;
+    color:var(--muted);list-style:none;padding:3px 0;}
+  details.strikes summary:hover{color:var(--text);}
+  details.strikes summary::before{content:'▸ ';color:var(--violet);}
+  details.strikes[open] summary::before{content:'▾ ';}
+  .stbl{width:100%;margin-top:9px;border-collapse:collapse;}
+  .stbl th{text-align:right;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border);font-weight:500;}
+  .stbl th.left{text-align:left;}
+  .stbl td{padding:5px 8px;font-family:'JetBrains Mono',monospace;font-size:11.5px;text-align:right;
+    border-bottom:1px solid #191E22;}
+  .stbl td.left{text-align:left;font-weight:600;}
+  .stbl td.ce{color:var(--up);} .stbl td.pe{color:var(--down);}
+  .ftag{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;}
+  .f-write{background:#F0554B22;color:var(--down);}
+  .f-buy{background:#33D17A22;color:var(--up);}
+  .f-other{background:#8B949C22;color:var(--muted);}
+  .f-close{background:#4BC8E822;color:var(--cyan);}
+  .ftag{cursor:help;}
+  .stnote{font-size:11px;color:#6E7880;line-height:1.6;margin-top:8px;}
+  .stbl.chain td, .stbl.chain th{text-align:center;padding:5px 6px;}
+  .stbl.chain .strikecol{font-weight:700;color:var(--text);background:#171C21;}
+  .stbl.chain .grouphdr th{font-size:9.5px;letter-spacing:.1em;color:var(--muted);
+    border-bottom:1px solid var(--border);padding-bottom:4px;}
+  .stbl.chain .grouphdr th:first-child{color:var(--down);}
+  .stbl.chain .grouphdr th:last-child{color:var(--up);}
+  .stbl.chain tr.atmrow{background:#1B2024;}
+  .atmtag{font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;color:var(--amber);
+    display:block;letter-spacing:.06em;}
+  .peakoi{position:relative;font-weight:700;color:var(--violet);}
+  .peaktag{font-family:'JetBrains Mono',monospace;font-size:7.5px;font-weight:700;color:var(--violet);
+    display:block;letter-spacing:.08em;opacity:.8;}
+  .stbl.chain tr.peakrow{box-shadow:inset 0 0 0 1px #9B7BFF33;}
+  .suspect{margin-top:9px;padding:9px 12px;border-radius:7px;background:#1A1206;border:1px solid #3D2E10;
+    color:#D7C9A8;font-size:11.5px;line-height:1.6;}
+  .suspect b{color:#F0DFB8;}
+  .rstate{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;padding:2px 8px;
+    border-radius:4px;margin-right:8px;letter-spacing:.03em;}
+  .r-confirming{background:#33D17A22;color:var(--up);}
+  .r-diverging{background:#E8B84B22;color:var(--amber);}
+  .r-pausing{background:#8B949C22;color:var(--muted);}
+  .r-no_trend{background:#8B949C18;color:#5C666E;}
+  .spark{display:inline-flex;gap:2px;align-items:flex-end;height:14px;margin-left:8px;vertical-align:middle;}
+  .spark i{display:block;width:4px;border-radius:1px;}
+
+  .loading,.error{color:var(--muted);font-size:13px;padding:24px 8px;}
+  .error{color:var(--down);}
+  .note{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--muted);
+    border-radius:9px;padding:15px 18px;margin-top:22px;color:var(--muted);font-size:12px;line-height:1.8;}
+  .note b{color:var(--text);}
+  .daywarn{background:#1A1206;border:1px solid #3D2E10;border-left:3px solid var(--amber);border-radius:9px;
+    padding:13px 16px;margin-bottom:18px;color:#D7C9A8;font-size:12.5px;line-height:1.7;}
+  .daywarn b{color:#F0DFB8;}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← All sectors</a>
+  <div class="eyebrow"><span>F&O POSITIONING · OPEN INTEREST</span><span id="asof">—</span></div>
+  <h1>What positions are being built</h1>
+  <p class="sub">Futures buildup crossed with option flow, to show whether futures exposure is being hedged with options or run naked.</p>
+
+  <div class="caveat">
+    <b>What this can and cannot show.</b> Open interest counts contracts outstanding, and every contract has a buyer and a seller — so OI alone never reveals who initiated a position or who is on which side. Combining OI change with price change permits an <b>inference</b> about who was aggressive, which is what this page does. It is a well-established inference, not a measurement.<br><br>
+    <b>Raw numbers are normalised against each contract's own history.</b> A 4% futures OI move is seven standard deviations in a contract that rarely shifts, and well within normal for one that swings daily — so OI change is scored in deviations, not percent. The same applies to PCR: 0.82 is the top of the range for a stock that normally sits at 0.6 and the bottom for one that sits at 1.3, so it is reported as a percentile of that stock's own range rather than against the usual rules of thumb, which were built for indices. Option OI direction is tracked across sessions for the same reason a single day of delivery means little.<br><br>
+    <b>The expiry signal weighs the strands and reports disagreement as disagreement.</b> Futures buildup carries double weight, more if the OI move is statistically unusual; call and put flow, PCR position and multi-day option OI each add one. When the strands point opposite ways the result is <b>Mixed</b> rather than a forced call — one side positioning against the other is itself information, and flattening it into a direction would discard the most useful part.<br><br>
+    <b>Bank Nifty is included.</b> It settles monthly, so its expiry cycle matches the stock series and the comparison holds. Nifty and the other indices are excluded because their weekly expiries make "nearest expiry" mean something different — the OI numbers would not be comparable with a monthly stock contract.<br><br>
+    <b>Which expiry this covers.</b> Everything here — futures OI, option OI, PCR, max pain, the 5-day trend — is the <b>nearest expiry only</b>. Later months are excluded, which matters as expiry approaches: positions roll forward, current-month OI falls, and that looks identical to unwinding. Next-month OI is now tracked alongside so rollover can be identified and flagged rather than misread as conviction leaving.<br><br>
+    <b>What delivery does and does not capture.</b> It correctly excludes <b>intraday</b> trading — positions squared off the same day net to zero and never reach settlement. It does <b>not</b> exclude MTF purchases (margin-funded, delivered into the broker's account against a loan), BTST positions, or the cash leg of cash-and-carry arbitrage, all of which take delivery and look identical to outright buying. So high delivery removes the noisiest category of activity, but it is not proof of unleveraged conviction. Note the irony on the arbitrage point: high delivery alongside a futures short buildup may be the arbitrage cash leg, which is why that combination is flagged separately rather than read as accumulation.<br><br>
+    <b>How delivery is judged.</b> Not against a fixed threshold — some counters routinely settle 20% of volume into demat and others 70%, so a blanket cutoff flags the same names every day and misses a genuine surge in a habitually low-delivery stock. Each figure is compared to that stock's own average over the last 15 sessions: measured in <b>standard deviations from that stock's own mean</b>, not as a fixed multiple. A ratio threshold cannot work: 1.15× its average is nearly two deviations for a stock whose delivery sits in a tight band, and half a deviation for one that swings between 20% and 80%. Beyond <b>+2 sd</b> is treated as significant, <b>+1 to +2</b> as raised, below <b>−1</b> as weak — which matches how published delivery screens normalise the figure. Where a run of consecutive above-average sessions exists it is shown too, since a single high day can be a block deal or an index rebalance while a three-to-five session run is the accumulation footprint practitioners actually watch. Delivery is checked <b>before</b> basis when classifying a buildup, because real stock changing hands is stronger evidence than the carry.<br><br>
+    <b>Why cash-market data is here.</b> Futures OI alone cannot tell genuine bearish speculation apart from cash-and-carry arbitrage — buying stock in cash and selling futures against it produces identical short OI with no directional view whatsoever. Two things separate them: the <b>basis</b>, since arbitrage only pays when futures are rich to spot, and <b>delivery percentage</b>, since an arbitrageur takes delivery while a day trader does not. Both are now folded into the verdict on each card, and stocks where short OI is probably arbitrage are flagged in amber rather than reported as bearish.<br><br>
+    <b>On Sensibull and similar platforms.</b> They have no public API, and there would be no advantage anyway — they consume the same NSE exchange feed. Where NSE helps is that its option chain endpoint publishes <b>changeinOpenInterest</b> directly, which is the exchange's own day-over-day delta. This page uses that when NSE responds, which is what makes same-day analysis possible.<br><br>
+    <b>On "smart money".</b> The only genuine participant attribution is NSE's daily participant-wise OI file, splitting FII, DII, Pro and Client. That is end-of-day and not available through a broker API. Nothing here identifies who is trading — it identifies what structure is being built.
+  </div>
+
+  <div id="daywarn"></div>
+
+  <div class="ctrls">
+    <button class="btn" onclick="load(true)">↻ Run scan</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="archnote" id="archnote"></div>
+  <div id="out"><div class="loading">Loading…</div></div>
+
+  <div class="note">
+    <b>Futures classification.</b> Price up with OI up is a long buildup — new money committing on the long side. Price down with OI up is a short buildup. Price up with OI <i>down</i> is short covering, and price down with OI down is long unwinding. Covering and unwinding are weaker signals: old positions leaving, not new conviction arriving.<br><br>
+    <b>Option flow.</b> Rising OI with a falling premium suggests writers came out ahead on price; rising OI with a rising premium suggests buyers did. Premium also moves with the underlying and with implied volatility, so the underlying's expected effect is stripped out first — that removes the largest source of false reads, not all of them.<br><br>
+    This says who won on price, <b>not</b> who was crossing the spread. Passive buyers absorbing aggressive sellers produce rising OI and a rising premium, and look identical here to aggressive buying. Only tick-level order flow tells those apart.<br><br>
+    <b>Why the combination matters.</b> A futures long paired with call writing is a capped, income-seeking position. The same futures long paired with put buying is a conviction position paying for insurance. Identical futures data, opposite messages about confidence — and both invisible if you look at futures or options alone.<br><br>
+    <b>Single day vs the run.</b> One day's OI change is a snapshot and can mislead in both directions: a stock five sessions into steady accumulation may post its smallest increment today and look quiet, while a one-day spike on a flat base looks identical to real conviction. Each card therefore also shows the 5-day futures OI trend, a conviction score weighting size by how one-directional the build has been, and whether today <b>confirms</b>, <b>diverges from</b> or merely <b>pauses</b> that run. The bars are daily OI changes across the window.<br><br>
+    <b>Max pain</b> is the strike where writers' total payout is smallest. The idea that price gravitates toward it is contested and the level shifts as OI moves, so treat it as context, never a target.
+  </div>
+</div>
+
+<script>
+let all = [];
+let filter = 'all';
+let pollTimer = null;
+
+function pc(v){ return v > 0 ? 'pos' : (v < 0 ? 'neg' : 'neu'); }
+function sg(v){ return v >= 0 ? '+' : ''; }
+function fmtOI(v){
+  if(v == null) return '—';
+  const a = Math.abs(v);
+  if(a >= 1e7) return (v/1e7).toFixed(2)+'Cr';
+  if(a >= 1e5) return (v/1e5).toFixed(2)+'L';
+  if(a >= 1e3) return (v/1e3).toFixed(1)+'K';
+  return Math.round(v);
+}
+
+const FUT_TAG = {
+  long_buildup:{c:'t-bull',t:'LONG BUILDUP'}, short_buildup:{c:'t-bear',t:'SHORT BUILDUP'},
+  short_covering:{c:'t-bull',t:'SHORT COVERING'}, long_unwinding:{c:'t-bear',t:'LONG UNWINDING'},
+  drift_up:{c:'t-neut',t:'DRIFT UP'}, drift_down:{c:'t-neut',t:'DRIFT DOWN'}, quiet:{c:'t-neut',t:'QUIET'},
+};
+
+function cardClass(r){
+  const b = r.structure ? r.structure.bias : r.futures_class.bias;
+  if(b === 'bullish_capped') return 'capped';
+  if(b === 'bullish') return 'bull';
+  if(b === 'bearish') return 'bear';
+  return 'neut';
+}
+
+function passes(r){
+  if(filter === 'all') return true;
+  if(filter === 'hedged') return r.structure && /Covered|Protected|Hedged/.test(r.structure.label);
+  if(filter === 'naked') return r.structure && /Naked|Aggressive/.test(r.structure.label);
+  if(filter === 'vol') return r.structure && /volatility/.test(r.structure.label);
+  if(filter === 'sustained') return r.trend && r.trend.kind !== 'no_trend' && r.trend.conviction >= 40;
+  if(filter === 'diverging') return r.reconcile && r.reconcile.state === 'diverging';
+  if(filter === 'arb') return r.verdict && /arbitrage/i.test(r.verdict.verdict);
+  if(filter === 'accum') return r.verdict && /accumulation/i.test(r.verdict.verdict);
+  if(filter === 'index') return !!r.is_index;
+  if(filter === 'sig_bull') return r.expiry_signal && /bullish/.test(r.expiry_signal.signal);
+  if(filter === 'sig_bear') return r.expiry_signal && /bearish/.test(r.expiry_signal.signal);
+  if(filter === 'sig_mixed') return r.expiry_signal && r.expiry_signal.signal === 'mixed';
+  if(filter === 'oi_extreme') return r.oi_zscore && ['notable','extreme'].includes(r.oi_zscore.band);
+  return r.futures_class.kind === filter;
+}
+
+function renderChips(){
+  const counts = {};
+  all.forEach(r => counts[r.futures_class.kind] = (counts[r.futures_class.kind]||0)+1);
+  const hedged = all.filter(r=>r.structure && /Covered|Protected|Hedged/.test(r.structure.label)).length;
+  const naked = all.filter(r=>r.structure && /Naked|Aggressive/.test(r.structure.label)).length;
+  const vol = all.filter(r=>r.structure && /volatility/.test(r.structure.label)).length;
+
+  const items = [['all','All',all.length]];
+  const nIdx = all.filter(r=>r.is_index).length;
+  if(nIdx) items.push(['index','Index',nIdx]);
+  ['long_buildup','short_buildup','short_covering','long_unwinding'].forEach(k=>{
+    if(counts[k]) items.push([k, FUT_TAG[k].t, counts[k]]);
+  });
+  if(hedged) items.push(['hedged','Hedged',hedged]);
+  if(naked) items.push(['naked','Naked',naked]);
+  if(vol) items.push(['vol','Vol plays',vol]);
+  const sust = all.filter(r=>r.trend && r.trend.kind !== 'no_trend' && r.trend.conviction >= 40).length;
+  const dvg = all.filter(r=>r.reconcile && r.reconcile.state === 'diverging').length;
+  if(sust) items.push(['sustained','Sustained builds',sust]);
+  if(dvg) items.push(['diverging','Diverging today',dvg]);
+  const arb = all.filter(r=>r.verdict && /arbitrage/i.test(r.verdict.verdict)).length;
+  const acc = all.filter(r=>r.verdict && /accumulation/i.test(r.verdict.verdict)).length;
+  if(arb) items.push(['arb','Arbitrage (not bearish)',arb]);
+  if(acc) items.push(['accum','Real accumulation',acc]);
+  const sb = all.filter(r=>r.expiry_signal && /bullish/.test(r.expiry_signal.signal)).length;
+  const sr = all.filter(r=>r.expiry_signal && /bearish/.test(r.expiry_signal.signal)).length;
+  const sm = all.filter(r=>r.expiry_signal && r.expiry_signal.signal === 'mixed').length;
+  const oz = all.filter(r=>r.oi_zscore && ['notable','extreme'].includes(r.oi_zscore.band)).length;
+  if(sb) items.push(['sig_bull','Bullish expiry',sb]);
+  if(sr) items.push(['sig_bear','Bearish expiry',sr]);
+  if(sm) items.push(['sig_mixed','Mixed',sm]);
+  if(oz) items.push(['oi_extreme','Unusual OI move',oz]);
+
+  document.getElementById('chips').innerHTML = items.map(([k,l,c])=>
+    `<button class="chip ${filter===k?'active':''}" data-f="${k}">${l}<span class="cnt">${c}</span></button>`).join('');
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+    filter=c.dataset.f; renderChips(); renderList();
+  }));
+}
+
+const FLOW_LABEL = {
+  writing:'WRITTEN', buying:'BOUGHT',
+  writer_covering:'WRITERS OUT', holder_exit:'HOLDERS OUT',
+  short_covering:'WRITERS OUT', unwinding:'CLOSED', unclear:'UNCLEAR'
+};
+const FLOW_TITLE = {
+  CE: {
+    writing: 'Call OI rose while the premium fell relative to the underlying. Sellers came out ahead on price, so this is new SHORT CALL exposure — a bet the stock stays below this strike. Bearish to neutral.',
+    buying: 'Call OI rose and the premium rose relative to the underlying. Buyers came out ahead on price, so this is new LONG CALL exposure — a bet the stock rises above this strike. Bullish.',
+    writer_covering: 'Call OI FELL while the premium rose. Positions closed, and call writers buying back drove the price. Short call exposure removed — mildly bullish, since a ceiling is being lifted.',
+    holder_exit: 'Call OI FELL while the premium fell. Positions closed, and call holders selling drove the price. Long call exposure removed — upside bets being abandoned.',
+    unwinding: 'Call OI fell with no clear premium signal. Positions closed, but which side initiated cannot be read.',
+    unclear: 'Call OI moved but the premium gives no clear read.',
+  },
+  PE: {
+    writing: 'Put OI rose while the premium fell relative to the underlying. Sellers came out ahead on price, so this is new SHORT PUT exposure — a bet the stock stays above this strike. Bullish to neutral.',
+    buying: 'Put OI rose and the premium rose relative to the underlying. Buyers came out ahead on price, so this is new LONG PUT exposure. A long put is a BEARISH position — it profits if the stock falls. "Long" here means long the option, not long the stock.',
+    writer_covering: 'Put OI FELL while the premium rose. Positions closed, and put writers buying back drove the price. Short put exposure removed — mildly bearish, since a floor is being withdrawn.',
+    holder_exit: 'Put OI FELL while the premium fell. Positions closed, and put holders selling drove the price. Downside protection being abandoned.',
+    unwinding: 'Put OI fell with no clear premium signal. Positions closed, but which side initiated cannot be read.',
+    unclear: 'Put OI moved but the premium gives no clear read.',
+  }
+};
+
+function strikeTable(r){
+  const all = r.strikes || [];
+  if(!all.length) return '';
+
+  // pair the legs by strike, the way an option chain is actually read
+  const byStrike = {};
+  all.forEach(x=>{
+    byStrike[x.strike] = byStrike[x.strike] || {strike:x.strike};
+    byStrike[x.strike][x.type] = x;
+  });
+  const rows = Object.values(byStrike).sort((a,b)=>a.strike-b.strike);
+  const anyFlow = all.some(x=>x.flow);
+  if(!anyFlow){
+    return `<details class="strikes"><summary>Per-strike detail — no premium data to classify writing vs buying</summary>
+      <div class="stnote">${all.length} strikes moved, but none carried a premium change to compare against. Writing and buying both raise open interest, so without knowing whether the premium rose or fell they cannot be told apart.</div></details>`;
+  }
+
+  const spot = r.future ? r.future.price : null;
+  // the strikes carrying the most open interest are where writers are dug in —
+  // typically the levels price struggles to pass through
+  let maxCeOi = 0, maxPeOi = 0, maxCeStrike = null, maxPeStrike = null;
+  rows.forEach(row=>{
+    if(row.CE && (row.CE.oi || 0) > maxCeOi){ maxCeOi = row.CE.oi; maxCeStrike = row.strike; }
+    if(row.PE && (row.PE.oi || 0) > maxPeOi){ maxPeOi = row.PE.oi; maxPeStrike = row.strike; }
+  });
+
+  const cell = (leg, isPeak) => {
+    if(!leg) return {chg:'—', pct:'—', oi:'—', prem:'—', tag:''};
+    const fl = leg.flow ? (FLOW_LABEL[leg.flow] || leg.flow.toUpperCase()) : '';
+    const cls = leg.flow === 'writing' ? 'f-write'
+              : leg.flow === 'buying' ? 'f-buy'
+              : (leg.flow === 'writer_covering' || leg.flow === 'holder_exit') ? 'f-close'
+              : 'f-other';
+    return {
+      chg: `<span class="${leg.oi_chg >= 0 ? 'pos' : 'neg'}">${leg.oi_chg >= 0 ? '+' : ''}${fmtOI(leg.oi_chg)}</span>`,
+      pct: leg.oi_chg_pct != null ? `<span class="${leg.oi_chg_pct >= 0 ? 'pos' : 'neg'}">${leg.oi_chg_pct >= 0 ? '+' : ''}${leg.oi_chg_pct}%</span>` : '—',
+      oi: isPeak ? `<span class="peakoi">${fmtOI(leg.oi)}<span class="peaktag">MAX</span></span>` : fmtOI(leg.oi),
+      prem: leg.prem_chg_pct != null
+        ? `<span class="${leg.prem_chg_pct >= 0 ? 'pos' : 'neg'}">${leg.prem_chg_pct >= 0 ? '+' : ''}${leg.prem_chg_pct}%</span>`
+        : '—',
+      tag: fl ? `<span class="ftag ${cls}" title="${(FLOW_TITLE[leg.type] || {})[leg.flow] || ''}">${fl}</span>` : '',
+    };
+  };
+
+  const body = rows.map(row=>{
+    const c = cell(row.CE, row.strike === maxCeStrike), p = cell(row.PE, row.strike === maxPeStrike);
+    const atm = spot && Math.abs(row.strike - spot) === Math.min(...rows.map(x=>Math.abs(x.strike - spot)));
+    const peak = (row.strike === maxCeStrike || row.strike === maxPeStrike) ? 'peakrow' : '';
+    return `<tr class="${atm ? 'atmrow' : ''} ${peak}">
+      <td>${c.tag}</td><td>${c.prem}</td><td>${c.oi}</td><td>${c.pct}</td><td>${c.chg}</td>
+      <td class="strikecol">${row.strike.toLocaleString('en-IN')}${atm ? '<span class="atmtag">ATM</span>' : ''}</td>
+      <td>${p.chg}</td><td>${p.pct}</td><td>${p.oi}</td><td>${p.prem}</td><td>${p.tag}</td>
+    </tr>`;
+  }).join('');
+
+  return `<details class="strikes">
+    <summary>Per-strike detail — calls and puts side by side, as an option chain reads</summary>
+    <table class="stbl chain"><thead>
+      <tr class="grouphdr"><th colspan="5">CALLS</th><th></th><th colspan="5">PUTS</th></tr>
+      <tr><th>Read as</th><th>Premium</th><th>OI</th><th>OI chg%</th><th>OI chg</th>
+          <th class="strikecol">Strike</th>
+          <th>OI chg</th><th>OI chg%</th><th>OI</th><th>Premium</th><th>Read as</th></tr>
+    </thead><tbody>${body}</tbody></table>
+    <div class="stnote">The <b>MAX</b> marker sits on the call and put strikes holding the most open interest. Those are where writers are most committed, and they often act as the practical ceiling and floor into expiry — price tends to struggle through the biggest call wall and find support at the biggest put wall.<br><br><b>Rising OI</b> means new positions opened. A falling premium points to sellers having the upper hand on price (WRITTEN); a rising premium to buyers (BOUGHT).<br>
+<b>Falling OI</b> means positions closed — it can never indicate new buying. A rising premium there means writers were buying back (WRITERS OUT); a falling premium means holders were selling to close (HOLDERS OUT).<br><br>
+<b>Read the side, not just the word.</b> "Bought" on a <b>put</b> row is bearish — a long put profits when the stock falls. "Written" on a <b>call</b> row is also bearish. The label describes the option position, not a view on the stock. Hover any tag for the full reading.<br><br>
+<b>What this cannot tell you.</b> Open interest and premium reveal which side came out ahead on price, not which side was crossing the spread. Passive buyers absorbing aggressive sellers produce rising OI and a rising premium — and look identical to aggressive buying here. Only tick-level order flow separates the two.${
+      r.lot_size ? `<br><br>Comparing against a live option chain? These figures were captured when the scan last ran, not now — open interest builds through the session, so a live chain reads higher later in the day. The capture time is in the header.<br><br>All open interest is shown in <b>shares</b>, not lots. NSE publishes option OI in contracts, so those figures are multiplied by this instrument's lot size of <b>${r.lot_size}</b> to match the futures OI above.` : ''
+    }</div>
+  </details>`;
+}
+
+const SIG_CLASS = {
+  bullish:'sig-bull', lean_bullish:'sig-bull',
+  bearish:'sig-bear', lean_bearish:'sig-bear',
+  mixed:'sig-mixed', no_read:'sig-none',
+};
+
+function expiryLine(r){
+  const e = r.expiry_signal;
+  if(!e || e.signal === 'no_read') return '';
+  const z = r.oi_zscore, p = r.pcr_context, t = r.option_trend;
+  const bits = [];
+  if(z) bits.push(`OI move ${z.z >= 0 ? '+' : ''}${z.z} sd (${z.band})`);
+  if(p) bits.push(`PCR ${p.pcr} at ${p.percentile}th pctile of its own range`);
+  if(t) bits.push(`${t.sessions}d: call OI ${t.ce_chg_pct >= 0 ? '+' : ''}${t.ce_chg_pct}%, put OI ${t.pe_chg_pct >= 0 ? '+' : ''}${t.pe_chg_pct}%`);
+  return `<div class="expsig ${SIG_CLASS[e.signal] || 'sig-none'}">
+    <div class="expsig-head">${e.label}
+      <span class="expsig-w">${e.bull_weight} bull &middot; ${e.bear_weight} bear &middot; ${e.days_to_expiry}d left</span></div>
+    <div class="expsig-why">${(e.reasons || []).join(' &middot; ')}</div>
+    <div class="expsig-note">${e.note}</div>
+    ${bits.length ? `<div class="expsig-bits">${bits.join(' &nbsp;|&nbsp; ')}</div>` : ''}
+  </div>`;
+}
+
+function verdictLine(r){
+  const v = r.verdict;
+  if(!v) return '';
+  const arb = /arbitrage|Conflicting/i.test(v.verdict);
+  const bull = /accumulation|Bullish|demand/i.test(v.verdict);
+  const bear = /bearish|short/i.test(v.verdict) && !arb;
+  const cls = arb ? 'v-arb' : (bull ? 'v-bull' : (bear ? 'v-bear' : 'v-neut'));
+  const bits = [];
+  if(r.basis) bits.push(`basis ${r.basis.basis_pct >= 0 ? '+' : ''}${r.basis.basis_pct}% (${r.basis.annualised_pct}% ann.)`);
+  if(r.delivery_pct != null){
+    if(r.delivery_z != null){
+      bits.push(`delivery ${r.delivery_pct}% vs ${r.delivery_avg}% mean, ${r.delivery_z >= 0 ? '+' : ''}${r.delivery_z} sd`
+        + (r.delivery_streak >= 3 ? ` · ${r.delivery_streak}d above average` : ''));
+    }else if(r.delivery_avg){
+      bits.push(`delivery ${r.delivery_pct}% vs ${r.delivery_avg}% norm`);
+    }else{
+      bits.push(`delivery ${r.delivery_pct}%`);
+    }
+  }
+  return `<div class="verdict ${cls}">
+    <div class="vhead">${v.verdict}<span class="vconf">confidence ${Math.round(v.confidence*100)}%</span></div>
+    <div class="vnote">${v.note}</div>
+    ${bits.length ? `<div class="vbits">${bits.join(' &middot; ')}</div>` : ''}
+  </div>`;
+}
+
+function rolloverLine(r){
+  const ro = r.rollover;
+  if(!ro) return '';
+  if(ro.likely_rollover){
+    return `<div class="roll warn"><b>Probably rollover, not unwinding.</b> ${ro.note} Treat the current-month OI drop as positions moving forward rather than conviction leaving.</div>`;
+  }
+  if(ro.in_roll_window){
+    return `<div class="roll"><b>Rollover window.</b> ${r.days_to_expiry} days to expiry, with ${ro.next_share_pct}% of total open interest already in the ${ro.next_expiry} contract. Current-month OI changes get noisy from here as positions migrate.</div>`;
+  }
+  return '';
+}
+
+function suspectLine(r){
+  const f = r.future;
+  if(!f.suspect) return '';
+  return `<div class="suspect"><b>Treat this number with caution.</b> ${f.suspect_reason}. The classification above is computed from it regardless, so verify against the chart before drawing any conclusion.</div>`;
+}
+
+function spark(daily){
+  if(!daily || !daily.length) return '';
+  const mx = Math.max(...daily.map(d=>Math.abs(d.oi_chg_pct)), 0.1);
+  return '<span class="spark">' + daily.map(d=>{
+    const h = Math.max(2, Math.round(Math.abs(d.oi_chg_pct)/mx*14));
+    const col = d.oi_chg_pct >= 0 ? '#33D17A' : '#F0554B';
+    return `<i style="height:${h}px;background:${col}"></i>`;
+  }).join('') + '</span>';
+}
+
+async function refreshOne(btn){
+  const sym = btn.dataset.sym;
+  btn.disabled = true;
+  btn.innerHTML = '&hellip;';
+  btn.className = 'rfr';
+  try{
+    const res = await fetch(`/api/oi-refresh/${encodeURIComponent(sym)}`);
+    if(res.status === 401){ window.location.href = '/login'; return; }
+    const d = await res.json();
+    if(!res.ok || d.error){
+      btn.className = 'rfr fail';
+      btn.innerHTML = d.busy ? 'scan running' : 'failed';
+      btn.title = d.error || 'refresh failed';
+      setTimeout(()=>{ btn.className='rfr'; btn.innerHTML='&#8635;'; btn.disabled=false; }, 4000);
+      return;
+    }
+    const i = all.findIndex(s => s.name === sym);
+    if(i >= 0) all[i] = d.stock; else all.push(d.stock);
+    const card = btn.closest('.card');
+    if(card){
+      card.outerHTML = renderCard(d.stock);
+      const nb = document.querySelector(`.rfr[data-sym="${CSS.escape(sym)}"]`);
+      if(nb){
+        nb.className = 'rfr done';
+        nb.innerHTML = d.refreshed_at;
+        nb.title = `Refreshed at ${d.refreshed_at}. Every other card still shows the full scan time in the header.`;
+      }
+    }
+  }catch(e){
+    btn.className = 'rfr fail';
+    btn.innerHTML = 'failed';
+    btn.title = e.message;
+    setTimeout(()=>{ btn.className='rfr'; btn.innerHTML='&#8635;'; btn.disabled=false; }, 4000);
+  }
+}
+
+function retentionLine(r){
+  const rt = r.retention;
+  if(!rt || !rt.windows || !rt.windows.length){
+    return `<div class="trendline"><span class="rstate r-no_trend">NO RETENTION HISTORY</span>
+      Needs at least two stored sessions of option aggregates for this stock. It builds up as scans run.</div>`;
+  }
+  const cell = (pct, dir) => {
+    if(pct === null || pct === undefined) return '—';
+    const col = dir === 'added' ? 'var(--up)' : dir === 'reduced' ? 'var(--down)' : 'var(--muted)';
+    return `<b style="color:${col}">${pct}%</b>`;
+  };
+  const parts = rt.windows.map(w => {
+    const lbl = `<span class="retlbl">${w.sessions === 1 ? 'vs yesterday' : w.sessions + ' sessions ago'}</span>`;
+    if(w.reliable === false){
+      return `<span class="retwin">${lbl}<span class="retbad" title="${w.unreliable_reason || ''}">not comparable</span></span>`;
+    }
+    return `<span class="retwin">${lbl}calls ${cell(w.call_still_open_pct, w.call_direction)} &middot; puts ${cell(w.put_still_open_pct, w.put_direction)}</span>`;
+  }).join('');
+  const anyBad = rt.windows.some(w => w.reliable === false);
+  return `<div class="trendline"><span class="rstate r-no_trend">STILL OPEN</span>
+    Share of the option open interest from each earlier session that is still outstanding now.
+    <div class="retrow">${parts}</div>
+    <div class="retnote">Above 100% means more is open now than then — net new positions, not survivors.
+    ${rt.note}${anyBad ? ' <b>Windows marked "not comparable" were suppressed:</b> the stored totals are sums over whatever strikes were captured, and when that set changes between days the ratio measures coverage rather than positioning. Hover for the specific reason.' : ''}</div></div>`;
+}
+
+function trendLine(r){
+  const t = r.trend, rc = r.reconcile;
+  // never render nothing — a blank space reads as a bug, not as "no data"
+  if(!t || !rc){
+    return `<div class="trendline"><span class="rstate r-no_trend">NO TREND DATA</span>
+      The multi-day open-interest history could not be read for this contract, so no 5-day trend is shown.
+      Today's classification above is unaffected — it needs only two sessions.</div>`;
+  }
+  if(t.kind === 'insufficient'){
+    return `<div class="trendline"><span class="rstate r-no_trend">SHORT HISTORY</span>${rc.note}</div>`;
+  }
+  if(t.kind === 'no_trend' && rc.state === 'no_trend'){
+    return `<div class="trendline"><span class="rstate r-no_trend">NO MULTI-DAY TREND</span>
+      Open interest has moved less than 2% over the last 5 sessions, so there is no run for today to confirm or contradict. Read today's move on its own.</div>`;
+  }
+  return `<div class="trendline">
+    <span class="rstate r-${rc.state}">${rc.state.replace('_',' ').toUpperCase()}</span>
+    ${rc.note}
+    ${t.kind !== 'no_trend' ? ` &middot; <b>${t.days}-day OI ${t.oi_chg_pct >= 0 ? '+' : ''}${t.oi_chg_pct}%</b>, conviction ${t.conviction}/100${spark(t.daily)}` : ''}
+  </div>`;
+}
+
+function indexNote(r){
+  if(!r.is_index) return '';
+  return `<div class="idxnote">Index positioning reads differently from a stock. There is <b>no delivery data</b> — an index cannot be delivered — so the cash-market leg that separates real accumulation from churn is unavailable, and every verdict here carries lower confidence than the stock equivalent. Offsetting that, index options are far more liquid than stock options, so the option-flow half is more reliable. Index arbitrage exists but needs the whole constituent basket, so a rich basis is weaker evidence of arbitrage than it would be on a single stock.</div>`;
+}
+
+function renderCard(r){
+  const f = r.future, fc = r.futures_class, o = r.options;
+  const tag = FUT_TAG[fc.kind] || FUT_TAG.quiet;
+  const flowTags = [];
+  // these come from the same option data as the structure inference, so if that
+  // was withheld as unreliable the tags must be withheld too
+  const trustFlow = r.opt_material !== false;
+  if(trustFlow){
+    if(o.call_flow.flow !== 'none' && o.call_flow.flow !== 'mixed')
+      flowTags.push(`<span class="tag t-flow">CALL ${o.call_flow.flow.toUpperCase()}</span>`);
+    if(o.put_flow.flow !== 'none' && o.put_flow.flow !== 'mixed')
+      flowTags.push(`<span class="tag t-flow">PUT ${o.put_flow.flow.toUpperCase()}</span>`);
+  }
+
+  return `<div class="card ${cardClass(r)} ${r.is_index ? 'idx' : ''}">
+    <div class="top">
+      <div>
+        <div class="sym">${r.is_index
+          ? (r.display_name || r.name)
+          : `<a class="symlink" href="/liquidity/${r.name}" title="Open the liquidity map for ${r.name}">${r.display_name || r.name}</a>`
+        }${r.is_index ? '<span class="idxbadge">INDEX</span>' : ''}<button class="rfr" data-sym="${r.name}" onclick="refreshOne(this)" title="Re-read this one stock only — futures OI, option chain and delivery. Takes seconds instead of the full scan.">&#8635;</button></div>
+        <div class="sympx">${f.price} <span class="${pc(f.price_chg_pct)}">${sg(f.price_chg_pct)}${f.price_chg_pct}%</span></div>
+        <div class="expy">${r.expiry || ''}${r.days_to_expiry != null ? ` · ${r.days_to_expiry}d` : ''}</div>
+      </div>
+      <div class="tags">
+        <span class="tag ${tag.c}">${tag.t}</span>
+        ${flowTags.join('')}
+        ${r.max_pain ? `<span class="tag t-neut">MAX PAIN ${r.max_pain}</span>` : ''}
+        ${r.oi_source === 'nse' ? '<span class="tag t-src" title="Option OI change supplied by NSE">NSE Δ</span>' : ''}
+      </div>
+      <div class="nums">
+        <div class="${pc(f.oi_chg_pct)}">${sg(f.oi_chg_pct)}${f.oi_chg_pct}%<span>Fut OI chg</span></div>
+        <div class="neu">${fmtOI(f.oi)}<span>Fut OI</span></div>
+        <div class="${pc(o.ce_oi_chg)}">${sg(o.ce_oi_chg)}${fmtOI(o.ce_oi_chg)}<span>Call OI chg</span></div>
+        <div class="${pc(o.pe_oi_chg)}">${sg(o.pe_oi_chg)}${fmtOI(o.pe_oi_chg)}<span>Put OI chg</span></div>
+        <div class="neu">${o.pcr_oi ?? '—'}<span>PCR</span></div>
+      </div>
+    </div>
+    ${expiryLine(r)}
+    ${verdictLine(r)}
+    ${indexNote(r)}
+    ${r.structure
+        ? `<div class="struct"><span class="sname">${r.structure.label}</span>${r.structure.note}</div>`
+        : `<div class="struct nodata">${
+            r.opt_material === false && r.opt_move_pct != null
+              ? (r.nse_attempted === false
+                  ? `NSE data was not requested for this stock — it fell outside the coverage limit, so option OI comes from stored snapshots instead${r.opt_coverage != null ? ` (${Math.round(r.opt_coverage*100)}% of strikes had a baseline)` : ''}. No structure inferred.`
+                : r.opt_coverage != null && r.opt_coverage < 0.6
+                  ? `Only ${Math.round(r.opt_coverage*100)}% of strikes had a prior-day baseline, so the option OI change is measured from a partial chain and understates the real move. No structure inferred.`
+                  : `Option OI moved just ${r.opt_move_pct}% of outstanding — too small to read intent from.`)
+              : 'No option OI change for this stock, so the futures-vs-options hedge analysis could not run.'}</div>`}
+    ${rolloverLine(r)}
+    ${suspectLine(r)}
+    ${strikeTable(r)}
+    ${trendLine(r)}
+    ${retentionLine(r)}
+  </div>`;
+}
+
+function renderList(){
+  const rows = all.filter(passes);
+  if(rows.length){
+    document.getElementById('out').innerHTML = rows.map(renderCard).join('');
+    return;
+  }
+  // an empty result is either a filter with no hits or a scan that produced
+  // nothing at all — those need very different responses
+  if(all.length){
+    document.getElementById('out').innerHTML = '<div class="loading">Nothing matches this filter.</div>';
+    return;
+  }
+  const p = window.__pipeline || {};
+  const steps = [
+    ['Universe found', p.universe],
+    ['Futures OI read', p.futures_ok],
+    ['Option contracts requested', p.option_instruments_requested],
+    ['Option quotes received', p.option_quotes_received],
+    ['Stocks with usable chains', p.stocks_with_chains],
+  ];
+  const rowsHtml = steps.map(([k,v])=>
+    `<tr><td class="left">${k}</td><td class="${v ? '' : 'neg'}">${v != null ? v : '—'}</td></tr>`).join('');
+  const errs = (p.quote_batch_errors || []);
+  document.getElementById('out').innerHTML = `<div style="padding:8px;">
+    <div style="font-family:'Space Grotesk';font-weight:700;font-size:16px;margin-bottom:6px;">The scan returned nothing</div>
+    <div style="color:var(--muted);font-size:12.5px;line-height:1.7;margin-bottom:14px;">
+      Here is where the pipeline stopped. The first row that reads zero is the failure point.</div>
+    <table class="stbl" style="max-width:420px;"><tbody>${rowsHtml}</tbody></table>
+    ${errs.length ? `<div style="margin-top:12px;color:var(--down);font-size:11.5px;line-height:1.6;">
+      Quote errors: ${errs.map(e=>`<div>${e}</div>`).join('')}</div>` : ''}
+    <div style="margin-top:14px;color:var(--muted);font-size:11.5px;line-height:1.7;">
+      Check the Command Prompt window as well — the scan prints a line beginning
+      <code>[oi]</code> with the same counts and any Kite error text.</div>
+  </div>`;
+}
+
+function renderProgress(d){
+  document.getElementById('out').innerHTML = `<div style="padding:26px 8px;">
+    <div style="font-family:'Space Grotesk';font-weight:700;font-size:16px;margin-bottom:8px;">Scanning F&O universe — ${d.pct}%</div>
+    <div style="height:8px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:10px;max-width:440px;">
+      <div style="height:100%;width:${d.pct}%;background:linear-gradient(90deg,#9B7BFF,#7B5BDF);transition:width .4s;"></div>
+    </div>
+    <div style="color:var(--muted);font-size:12.5px;line-height:1.6;">
+      ${d.stage||''}${d.total?` · ${d.done} of ${d.total}`:''}<br>
+      Elapsed ${Math.floor(d.elapsed_sec/60)}m ${d.elapsed_sec%60}s${d.eta_sec!=null?` · about ${Math.ceil(d.eta_sec/60)} min left`:''}<br>
+      <span style="font-size:11.5px;">Reads real day-over-day futures OI from historical data, then bulk-quotes option chains.</span>
+    </div></div>`;
+}
+
+async function load(force){
+  if(pollTimer){ clearTimeout(pollTimer); pollTimer=null; }
+  try{
+    const res = await fetch('/api/oi'+(force?'?force=1':''));
+    if(res.status===401){ window.location.href='/login'; return; }
+    const d = await res.json();
+    if(d.building){ renderProgress(d); pollTimer=setTimeout(()=>load(false),2500); return; }
+    if(d.error){ document.getElementById('out').innerHTML=`<div class="error">${d.error}</div>`; return; }
+
+    all = d.stocks || [];
+    window.__pipeline = d.pipeline || {};
+    document.getElementById('asof').textContent = `${d.count} STOCKS · ${d.generated_at}`;
+    const dw = document.getElementById('daywarn');
+    const n = d.nse_count || 0;
+    const sq = d.snapshot_quality || {};
+    if(n > 0 && d.nse_failures === 0){
+      dw.innerHTML = `<div class="daywarn" style="border-left-color:#33D17A;background:#0E1A11;border-color:#1E3D24;color:#A8D7B4;">
+        <b>Same-day analysis active — ${n} stocks via NSE.</b> Option OI change is the exchange's own day-over-day figure, so it lines up with futures OI change without needing a stored snapshot. The structure inference below is valid today.</div>`;
+    }else if(n > 0){
+      dw.innerHTML = `<div class="daywarn" style="border-left-color:#33D17A;background:#0E1A11;border-color:#1E3D24;color:#A8D7B4;">
+        <b>Same-day analysis active for ${n} stocks.</b> NSE supplied exchange-computed OI change for these. ${d.nse_failures} symbols were refused — NSE throttles hard, so partial coverage is normal. Refused stocks fall back to snapshot comparison and show structure only once a prior day exists.</div>`;
+    }else if(d.delta_basis === 'previous_day' && sq.clean){
+      dw.innerHTML = `<div class="daywarn" style="border-left-color:#33D17A;background:#0E1A11;border-color:#1E3D24;color:#A8D7B4;">
+        <b>Full analysis via stored snapshots.</b> Option OI is compared against a baseline captured at <b>${sq.taken_at}</b> — near the close, so it lines up with futures OI change. The inference is valid.</div>`;
+    }else if(d.delta_basis === 'previous_day' && !sq.clean){
+      dw.innerHTML = `<div class="daywarn"><b>Structure inference withheld — the baseline is mid-session.</b>
+        ${sq.note} Comparing a part-day options delta against a close-to-close futures delta produces a confident-looking result built on mismatched windows, so it is suppressed rather than shown.<br><br>
+        <b>Fix:</b> run this scan once <b>after 3:25pm</b>. That stores a close-to-close baseline, and tomorrow's run will have both halves measuring the same window. Futures buildup, the 5-day trend, basis, delivery and max pain below are all still valid.</div>`;
+    }else if(d.delta_basis === 'intraday'){
+      dw.innerHTML = `<div class="daywarn"><b>Structure inference withheld — time windows do not match.</b>
+        NSE did not respond${d.nse_sample_errors && d.nse_sample_errors.length ? ` (${d.nse_sample_errors[0]})` : ''}, and the only option baseline available is from earlier today at ${d.delta_basis_stamp}, while futures OI change is measured against yesterday's close. Comparing a part-session options delta with a full-day futures delta would look confident and mean nothing, so it is suppressed.<br><br>
+        Futures buildup, OI distribution, PCR and max pain remain valid below.</div>`;
+    }else{
+      dw.innerHTML = `<div class="daywarn" style="border-left-width:4px;font-size:13px;"><b>⚠ Options analysis is NOT running — you are seeing futures data only.</b><br><br>
+        Every Call OI change and Put OI change below reads zero, so nothing is being compared between futures and options. The hedge structures this page exists to detect — covered calls, protected longs, hedged shorts — cannot be identified without that data.<br><br> NSE did not respond${d.nse_sample_errors && d.nse_sample_errors.length ? ` (${d.nse_sample_errors[0]})` : ''} and there is no prior snapshot to compare against. Futures buildup, OI distribution, PCR and max pain are still valid.<br><br>
+        <b>To fix:</b> open <code>/api/probe-option-chain?symbol=RELIANCE</code> in a new tab. If it fails, NSE is blocking this machine and option deltas will instead build up from tomorrow via stored snapshots. Futures buildup, the 5-day trend, OI distribution, PCR and max pain below remain valid either way.</div>`;
+    }
+    const sa = d.strike_archive;
+    if(sa && typeof sa.days_stored === 'number'){
+      const el = document.getElementById('archnote');
+      if(el){
+        if(sa.archived_today === 0){
+          el.className = 'archnote bad';
+          el.innerHTML = `<b>Per-strike archive is NOT writing.</b> This scan stored 0 strike rows, so strike-level retention will never mature. Check <code>/api/probe-fno</code> &rarr; <code>strike_archive</code>.`;
+        }else if(!sa.ready){
+          el.className = 'archnote';
+          el.innerHTML = `<b>Per-strike archive: ${sa.days_stored} of 5 sessions stored</b> (${sa.archived_today.toLocaleString('en-IN')} strike rows today). ${sa.days_needed} more trading ${sa.days_needed === 1 ? 'day' : 'days'} and strike-level retention becomes possible — comparing only strikes present on both days, which is immune to the coverage problem that suppresses windows above.`;
+        }else{
+          el.className = 'archnote ready';
+          el.innerHTML = `<b>Per-strike archive is ready — ${sa.days_stored} sessions stored.</b> Strike-level retention can now be computed over strikes common to both days, replacing the aggregate comparison and its coverage caveats.`;
+        }
+        el.style.display = '';
+      }
+    }
+    renderChips();
+    renderList();
+  }catch(e){
+    document.getElementById('out').innerHTML=`<div class="error">Failed: ${e.message}</div>`;
+  }
+}
+load(false);
+</script>
+
+{{ OWNER_FOOTER|safe }}
+
+</body>
+</html>

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sector Money Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B;
+    --amber:#E8B84B; --violet:#9B7BFF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:26px 18px 70px;}
+  .wrap{max-width:1000px;margin:0 auto;}
+  .back{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:12px;}
+  .back:hover{color:var(--text);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 20px;max-width:640px;line-height:1.6;}
+
+  .refresh{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;cursor:pointer;margin-bottom:20px;}
+  .refresh:hover{border-color:var(--muted);}
+
+  .verdict{border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:22px;background:var(--panel);}
+  .verdict.good{border-left:3px solid var(--up);}
+  .verdict.weak{border-left:3px solid var(--amber);}
+  .verdict.none{border-left:3px solid var(--down);}
+  .vhead{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:17px;margin-bottom:6px;}
+  .vbody{font-size:13px;color:var(--muted);line-height:1.65;}
+  .vbody b{color:var(--text);}
+  .vnums{display:flex;gap:26px;margin-top:13px;flex-wrap:wrap;}
+  .vnum .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:21px;}
+  .vnum .l{font-family:'JetBrains Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-top:2px;}
+
+  .ctx{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px;}
+  .ctxcell{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 16px;flex:1;min-width:150px;}
+  .ctxcell .l{font-family:'JetBrains Mono',monospace;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:5px;}
+  .ctxcell .n{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+  .ctxcell .s{font-size:11.5px;color:var(--muted);margin-top:3px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  thead th{text-align:right;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:12px 12px;border-bottom:1px solid var(--border);font-weight:500;}
+  thead th.left{text-align:left;padding-left:15px;}
+  tbody td{padding:11px 12px;border-bottom:1px solid #1E2327;font-size:13px;font-family:'JetBrains Mono',monospace;text-align:right;}
+  tbody td.name{font-family:'Inter',sans-serif;font-weight:600;text-align:left;padding-left:15px;cursor:pointer;}
+  tbody td.name:hover{color:var(--amber);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr.hot{background:#17150F;}
+  .relbar{display:inline-block;width:56px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:7px;}
+  .relbar div{height:100%;background:var(--amber);}
+  .rel{font-weight:700;}
+  .rel.hi{color:var(--amber);} .rel.norm{color:var(--text);} .rel.lo{color:var(--muted);}
+  .tr-up{color:var(--up);} .tr-dn{color:var(--down);} .tr-fl{color:var(--muted);}
+
+  .loading,.error{color:var(--muted);font-size:13px;padding:22px 16px;}
+  .error{color:var(--down);}
+  .note{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--muted);border-radius:8px;padding:14px 16px;margin-top:20px;color:var(--muted);font-size:12px;line-height:1.75;}
+  .note b{color:var(--text);}
+  .panel-head2{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:26px 0 12px;}
+  .ptitle{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:16px;}
+  .pnote{color:var(--muted);font-size:12px;flex:1;}
+  #daysSel{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:7px;cursor:pointer;}
+  .evpanel{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px;}
+  .evrow{display:grid;grid-template-columns:170px 92px 62px 1fr;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #1E2327;}
+  .evrow:last-child{border-bottom:none;}
+  .evrow.soon{background:#17150F;border-left:2px solid var(--amber);}
+  .evname{font-weight:600;font-size:13.5px;cursor:pointer;}
+  .evname:hover{color:var(--amber);}
+  .evdate{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--amber);font-weight:600;}
+  .evcount{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;text-align:center;}
+  .evsyms{display:flex;flex-wrap:wrap;gap:4px;}
+  .evsym{font-family:'JetBrains Mono',monospace;font-size:10.5px;background:#1B2024;border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--muted);}
+  .evsym b{color:var(--text);font-weight:600;}
+  .otherbox{padding:14px 16px;border-top:1px solid var(--border);background:#12161A;}
+  .otherttl{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;margin-bottom:4px;}
+  .othernote{font-size:11.5px;color:var(--muted);margin-bottom:10px;line-height:1.6;}
+  .otherlist{display:flex;flex-wrap:wrap;gap:6px;}
+  .osym{font-family:'JetBrains Mono',monospace;font-size:10.5px;background:#1B2024;
+    border:1px solid var(--border);border-radius:5px;padding:4px 9px;color:var(--muted);}
+  .osym b{color:var(--text);margin-right:5px;}
+  .evhead{display:grid;grid-template-columns:170px 92px 62px 1fr;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← All sectors</a>
+  <div class="eyebrow"><span>SECTOR MONEY FLOW · ROTATION</span><span id="asof">—</span></div>
+  <h1>Where money is moving</h1>
+  <p class="sub">Each sector's turnover measured against <b>its own</b> 20-day baseline — not against other sectors. Nifty Bank always trades the most rupees; that tells you nothing. A sector running 2× its own normal does.</p>
+
+  <button class="refresh" onclick="load(true)">↻ Rebuild history</button>
+  <button class="refresh" onclick="calibrate()" style="margin-left:8px;">⚙ Calibrate model</button>
+
+  <div id="calibration"></div>
+  <div id="verdict"></div>
+  <div class="ctx" id="ctx"></div>
+
+  <div class="panel-head2">
+    <span class="ptitle">Scheduled catalysts</span>
+    <span class="pnote">Upcoming results by sector — the strongest predictor of tomorrow's volume</span>
+    <select id="daysSel">
+      <option value="3">Next 3 days</option>
+      <option value="7" selected>Next 7 days</option>
+      <option value="15">Next 15 days</option>
+      <option value="30">Next 30 days</option>
+    </select>
+  </div>
+  <div id="events" class="evpanel"><div class="loading">Loading NSE event calendar…</div></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="left">Sector</th>
+        <th>Today ₹Cr</th>
+        <th>20d avg ₹Cr</th>
+        <th>Relative</th>
+        <th>3d trend</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"><tr><td colspan="5" class="loading">Building turnover history — the first run of the day pulls data for ~200 stocks and can take 1–2 minutes. After that it's cached and instant.</td></tr></tbody>
+  </table>
+
+  <div class="note">
+    <b>What this can and cannot do.</b> It measures where money is concentrating <i>right now</i> and tests whether that has historically carried into the next session on your own data. It is not a forecast. Most of what drives tomorrow's flow — earnings, RBI policy, global moves overnight, a single block deal — isn't in this dataset at all. Treat a high relative reading as "something is happening here, go look," not as a signal to buy. Check the measured edge above before relying on the persistence logic: if it's near zero, the ranking has no predictive content and only describes today.
+  </div>
+</div>
+
+<script>
+function fmt(n){ return n.toLocaleString('en-IN'); }
+
+function renderVerdict(bt){
+  const el = document.getElementById('verdict');
+  if(!bt){
+    el.className = 'verdict weak';
+    el.innerHTML = `<div class="vhead">Not enough history to test yet</div>
+      <div class="vbody">The persistence backtest needs about 60 sessions of turnover history. Come back after this has been cached for a few more days, and it will tell you whether today's leaders actually predict tomorrow's.</div>`;
+    return;
+  }
+  let cls, head, body;
+  if(bt.edge >= 12){
+    cls = 'good';
+    head = `Persistence is real on your data: +${bt.edge}pp edge`;
+    body = `When a sector was in the top ${bt.top_n} by relative turnover, it stayed there the next session <b>${bt.hit_rate}%</b> of the time, versus <b>${bt.base_rate}%</b> by chance. That gap is the entire edge — modest, but genuine. The leaders below are worth watching into tomorrow.`;
+  }else if(bt.edge >= 5){
+    cls = 'weak';
+    head = `Weak persistence: +${bt.edge}pp edge`;
+    body = `Top-${bt.top_n} sectors repeated <b>${bt.hit_rate}%</b> of the time against a <b>${bt.base_rate}%</b> base rate. That's a small edge and could easily be noise at this sample size. Use the ranking to see where activity is, not to predict tomorrow.`;
+  }else{
+    cls = 'none';
+    head = `No usable edge: ${bt.edge >= 0 ? '+' : ''}${bt.edge}pp`;
+    body = `Top-${bt.top_n} sectors repeated <b>${bt.hit_rate}%</b> of the time versus <b>${bt.base_rate}%</b> by chance — effectively no difference. On your data, today's flow leaders do <b>not</b> predict tomorrow's. The table below still shows where money is going now, but don't extrapolate it forward.`;
+  }
+  el.className = 'verdict ' + cls;
+  el.innerHTML = `<div class="vhead">${head}</div><div class="vbody">${body}</div>
+    <div class="vnums">
+      <div class="vnum"><div class="n">${bt.hit_rate}%</div><div class="l">Repeat rate</div></div>
+      <div class="vnum"><div class="n">${bt.base_rate}%</div><div class="l">By chance</div></div>
+      <div class="vnum"><div class="n">${bt.samples}</div><div class="l">Samples</div></div>
+      <div class="vnum"><div class="n">${bt.days_tested}</div><div class="l">Days tested</div></div>
+    </div>`;
+}
+
+function renderCtx(d){
+  const cells = [];
+  const hot = d.sectors.filter(s=>s.rel >= 1.5).length;
+  cells.push({l:'Sectors above 1.5x', n:hot, s:'running well above their own normal'});
+  if(d.vix){
+    const v = d.vix;
+    cells.push({l:'India VIX', n:v.level,
+      s:`${v.chg_pct >= 0 ? '+' : ''}${v.chg_pct}% today · ${v.vs_avg20 >= 0 ? '+' : ''}${v.vs_avg20}% vs 20d — ${v.regime}`});
+  }
+  const top = d.sectors[0];
+  if(top) cells.push({l:'Most abnormal today', n:top.name, s:`${top.rel}x its 20-day baseline`});
+  document.getElementById('ctx').innerHTML = cells.map(c=>
+    `<div class="ctxcell"><div class="l">${c.l}</div><div class="n">${c.n}</div><div class="s">${c.s}</div></div>`).join('');
+}
+
+function relClass(r){ return r >= 1.5 ? 'hi' : (r >= 0.85 ? 'norm' : 'lo'); }
+
+function dayLabel(iso){
+  const d = new Date(iso + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if(diff === 0) return 'TODAY';
+  if(diff === 1) return 'TOMORROW';
+  return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}).toUpperCase() + ` (${diff}d)`;
+}
+
+async function loadEvents(){
+  const el = document.getElementById('events');
+  const days = document.getElementById('daysSel').value;
+  el.innerHTML = '<div class="loading">Loading NSE event calendar…</div>';
+  try{
+    const res = await fetch(`/api/events?days=${days}`);
+    if(res.status === 401){ window.location.href='/login'; return; }
+    const d = await res.json();
+    if(d.error){
+      el.innerHTML = `<div class="error">${d.error}<br><span style="color:var(--muted);font-size:11.5px;">NSE blocks scripted requests intermittently — try again in a minute.</span></div>`;
+      return;
+    }
+    const withResults = d.sectors.filter(s => s.results_count > 0);
+    const other = d.other_results || [];
+
+    if(!withResults.length && !other.length){
+      const g = d.diagnostics || {};
+      let why;
+      if(!g.events_fetched){
+        why = `NSE's event calendar returned nothing — the feed is likely unreachable rather than empty.`;
+      }else if(!g.results_upcoming){
+        why = `NSE's calendar has <b>${g.events_fetched}</b> events loaded but <b>no results announcements scheduled ahead</b>. Normal between reporting seasons: quarterly results are due within 45 days of quarter end, so the calendar empties after each deadline and refills weeks before the next.`;
+      }else if(g.days_until_next != null && g.days_until_next > d.horizon_days){
+        why = `<b>${g.results_upcoming}</b> announcements are scheduled, the next on <b>${g.next_results_date}</b> — ${g.days_until_next} days out, beyond this ${d.horizon_days}-day window. Widen the dropdown.`;
+      }else{
+        why = `<b>${g.results_upcoming}</b> announcements are scheduled but none fall inside this window for tracked stocks.`;
+      }
+      el.innerHTML = `<div class="loading" style="line-height:1.75;">No results in the next ${d.horizon_days} days.<br><br>${why}</div>`;
+      return;
+    }
+
+    let otherBlock = '';
+    if(other.length){
+      const inWindow = other.filter(o => {
+        const days = Math.round((new Date(o.date+'T00:00:00') - new Date().setHours(0,0,0,0))/86400000);
+        return days >= 0 && days <= d.horizon_days;
+      });
+      if(inWindow.length){
+        otherBlock = `<div class="otherbox">
+          <div class="otherttl">${inWindow.length} more result${inWindow.length>1?'s':''} in stocks outside the tracked indices</div>
+          <div class="othernote">These are scheduled inside your window but the company is not a constituent of any index on this dashboard, so it has no sector to group under.</div>
+          <div class="otherlist">${inWindow.slice(0,24).map(o=>
+            `<span class="osym"><b>${o.symbol}</b> ${dayLabel(o.date)}</span>`).join('')}</div>
+        </div>`;
+      }
+    }
+
+    if(!withResults.length){
+      el.innerHTML = otherBlock || '<div class="loading">Nothing in this window.</div>';
+      return;
+    }
+
+    el.innerHTML = `<div class="evhead"><span>Sector</span><span>Next results</span><span>Count</span><span>Companies reporting</span></div>` +
+      withResults.map(s=>{
+        const soon = s.next_date && (new Date(s.next_date+'T00:00:00') - new Date().setHours(0,0,0,0)) <= 86400000*2;
+        const syms = [...new Set(s.events.map(e=>e.symbol))].slice(0,14);
+        return `<div class="evrow ${soon ? 'soon' : ''}">
+          <div class="evname" onclick="window.location.href='/stocks/${s.key}'">${s.name}</div>
+          <div class="evdate">${s.next_date ? dayLabel(s.next_date) : '—'}</div>
+          <div class="evcount">${s.results_count}</div>
+          <div class="evsyms">${syms.map(x=>`<span class="evsym"><b>${x}</b></span>`).join('')}${s.results_count > 14 ? `<span class="evsym">+${s.results_count-14} more</span>` : ''}</div>
+        </div>`;
+      }).join('') + otherBlock;
+  }catch(e){
+    el.innerHTML = `<div class="error">Failed: ${e.message}</div>`;
+  }
+}
+
+document.getElementById('daysSel').addEventListener('change', loadEvents);
+
+async function calibrate(){
+  const el = document.getElementById('calibration');
+  el.innerHTML = '<div class="verdict weak"><div class="vhead">Sweeping parameters…</div><div class="vbody">Testing every combination of baseline, top-N, horizon and trend filter, then re-validating the winner on untouched data.</div></div>';
+  try{
+    const res = await fetch('/api/flow-calibrate');
+    if(res.status === 401){ window.location.href='/login'; return; }
+    const d = await res.json();
+    if(d.error){ el.innerHTML = `<div class="verdict none"><div class="vbody error">${d.error}</div></div>`; return; }
+
+    const wf = d.walk_forward;
+    const tv = d.trend_filter_verdict;
+    let wfBlock = '';
+    if(wf){
+      const honest = wf.out_of_sample.edge;
+      const cls = honest >= 12 ? 'good' : (honest >= 5 ? 'weak' : 'none');
+      wfBlock = `<div class="verdict ${cls}" style="margin-bottom:14px;">
+        <div class="vhead">Out-of-sample edge: ${honest >= 0 ? '+' : ''}${honest}pp</div>
+        <div class="vbody">The best settings were chosen on the first half of your history, then tested on the second half which was never used for tuning. In-sample it showed <b>${wf.in_sample.edge}pp</b>; on fresh data it delivered <b>${honest}pp</b>${wf.decay > 0 ? ` — a decay of ${wf.decay}pp` : ''}. <b>Only the out-of-sample number is trustworthy.</b> ${d.configs_tested} configurations were tried, and trying many combinations will always surface something that looks good by luck.</div>
+      </div>`;
+    }
+
+    const rows = d.top_configs.slice(0,6).map(c=>`
+      <tr>
+        <td class="name">${c.baseline}d base · top ${c.top_n} · ${c.horizon}d horizon${c.trend_filter ? ' · trend' : ''}</td>
+        <td>${c.hit_rate}%</td><td>${c.base_rate}%</td>
+        <td class="rel ${c.edge >= 12 ? 'hi' : 'norm'}">${c.edge >= 0 ? '+' : ''}${c.edge}pp</td>
+        <td>${c.samples}</td>
+      </tr>`).join('');
+
+    el.innerHTML = wfBlock + `
+      <div class="verdict ${tv && tv.helps ? 'good' : 'weak'}" style="margin-bottom:14px;">
+        <div class="vhead">3-day trend filter: ${tv && tv.helps ? 'adds value' : 'adds nothing'}</div>
+        <div class="vbody">Across ${tv ? tv.configs_compared : 0} matched comparisons, requiring rising relative turnover changed the edge by <b>${tv ? (tv.avg_delta >= 0 ? '+' : '') + tv.avg_delta : '—'}pp</b> on average. ${tv && tv.helps ? 'Worth keeping as a filter.' : 'The trend column is descriptive only — it tells you what happened, not what will happen. Treat it as descriptive, not predictive.'}</div>
+      </div>
+      <table style="margin-bottom:22px;">
+        <thead><tr><th class="left">Configuration</th><th>Hit</th><th>Chance</th><th>Edge</th><th>N</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }catch(e){
+    el.innerHTML = `<div class="verdict none"><div class="vbody error">Failed: ${e.message}</div></div>`;
+  }
+}
+
+let pollTimer = null;
+
+function renderProgress(d){
+  const tbody = document.getElementById('tbody');
+  const eta = d.eta_sec !== null && d.eta_sec !== undefined
+    ? `about ${Math.ceil(d.eta_sec/60)} min left` : 'estimating…';
+  tbody.innerHTML = `<tr><td colspan="5" style="padding:26px 18px;">
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;margin-bottom:8px;">
+      Building turnover history — ${d.pct}%
+    </div>
+    <div style="height:8px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:10px;max-width:420px;">
+      <div style="height:100%;width:${d.pct}%;background:linear-gradient(90deg,#E8B84B,#E89A4B);transition:width .4s;"></div>
+    </div>
+    <div style="color:var(--muted);font-size:12.5px;line-height:1.6;">
+      ${d.done} of ${d.total || '…'} stocks${d.sector ? ` · currently ${d.sector}` : ''}<br>
+      Elapsed ${Math.floor(d.elapsed_sec/60)}m ${d.elapsed_sec%60}s · ${eta}<br>
+      <span style="font-size:11.5px;">This runs once a day and is cached afterwards. You can leave this page — the build continues in the background.</span>
+    </div>
+  </td></tr>`;
+}
+
+async function load(force){
+  if(pollTimer){ clearTimeout(pollTimer); pollTimer = null; }
+  const tbody = document.getElementById('tbody');
+  try{
+    const res = await fetch('/api/flow' + (force ? '?force=1' : ''));
+    if(res.status === 401){ window.location.href = '/login'; return; }
+    const raw = await res.text();
+    let d;
+    try { d = JSON.parse(raw); }
+    catch(e){ tbody.innerHTML = '<tr><td colspan="5" class="error">Server error — check the Command Prompt window.</td></tr>'; return; }
+
+    if(d.building){
+      renderProgress(d);
+      pollTimer = setTimeout(()=>load(false), 2500);   // poll, don't re-trigger
+      return;
+    }
+    if(d.error){ tbody.innerHTML = `<tr><td colspan="5" class="error">${d.error}</td></tr>`; return; }
+
+    document.getElementById('asof').textContent = d.as_of + (d.cached ? ' · CACHED' : ' · FRESH');
+    renderVerdict(d.backtest);
+    renderCtx(d);
+
+    const maxRel = Math.max(...d.sectors.map(s=>s.rel), 1);
+    tbody.innerHTML = d.sectors.map(s=>{
+      let tr = '<span class="tr-fl">—</span>';
+      if(s.trend !== null && s.trend !== undefined){
+        if(s.trend > 0.15) tr = `<span class="tr-up">↑ building +${s.trend}</span>`;
+        else if(s.trend < -0.15) tr = `<span class="tr-dn">↓ fading ${s.trend}</span>`;
+        else tr = '<span class="tr-fl">flat</span>';
+      }
+      return `<tr class="${s.rel >= 1.5 ? 'hot' : ''}">
+        <td class="name" onclick="window.location.href='/stocks/${s.key}'">${s.name}</td>
+        <td>${fmt(s.turnover_cr)}</td>
+        <td>${fmt(s.baseline_cr)}</td>
+        <td><span class="relbar"><div style="width:${Math.min(100, s.rel/maxRel*100)}%"></div></span><span class="rel ${relClass(s.rel)}">${s.rel}x</span></td>
+        <td>${tr}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){
+    tbody.innerHTML = `<tr><td colspan="5" class="error">Failed: ${e.message}</td></tr>`;
+  }
+}
+load(false);
+loadEvents();
+</script>
+</body>
+</html>

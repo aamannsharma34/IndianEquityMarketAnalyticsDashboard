@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synthetic Close — Nifty & Bank Nifty</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B;
+    --amber:#E8B84B; --violet:#9B7BFF; --cyan:#4BC8E8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:26px 18px 70px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  .back{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:12px;}
+  .back:hover{color:var(--text);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 18px;max-width:700px;line-height:1.6;}
+
+  .phase{border-radius:11px;padding:15px 18px;margin-bottom:20px;border:1px solid var(--border);background:var(--panel);}
+  .phase.hot{border-left:3px solid var(--amber);background:#1A1206;}
+  .phase.live{border-left:3px solid var(--up);}
+  .phase.calm{border-left:3px solid var(--muted);}
+  .ptitle{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;margin-bottom:5px;}
+  .phase.hot .ptitle{color:var(--amber);}
+  .pnote{font-size:12.5px;color:var(--muted);line-height:1.7;}
+  .clock{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:8px;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px;}
+  .chead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .cname{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+  .cexp{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);}
+
+  .row3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px;}
+  .m{background:var(--panel);padding:14px 16px;}
+  .m .l{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .m .v{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:21px;}
+  .m .s{font-size:11px;color:var(--muted);margin-top:3px;}
+  .pos{color:var(--up);} .neg{color:var(--down);} .neu{color:var(--muted);}
+  .m.synth .v{color:var(--violet);}
+  .m.fut .v{color:var(--cyan);}
+
+  .gapline{background:#171C21;border:1px solid var(--border);border-radius:9px;padding:12px 15px;margin-bottom:14px;font-size:12.5px;line-height:1.7;color:var(--muted);}
+  .gapline b{color:var(--text);}
+  .gapline .big{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;}
+
+  table{width:100%;border-collapse:collapse;}
+  thead th{text-align:right;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:9px 8px;border-bottom:1px solid var(--border);font-weight:500;}
+  thead th.left{text-align:left;}
+  tbody td{padding:8px;border-bottom:1px solid #1E2327;font-size:12px;font-family:'JetBrains Mono',monospace;text-align:right;}
+  tbody td.left{text-align:left;font-weight:600;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr.atm{background:#1B2024;}
+  tbody tr.atm td{font-weight:700;}
+  .wide{color:var(--amber);}
+
+  .warn{background:#1A1206;border:1px solid #3D2E10;border-left:3px solid var(--amber);border-radius:8px;padding:11px 14px;margin-bottom:12px;color:#D7C9A8;font-size:12px;line-height:1.65;}
+  .warn b{color:#F0DFB8;}
+
+  .loading,.error{color:var(--muted);font-size:13px;padding:22px 4px;}
+  .error{color:var(--down);}
+  .note{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--muted);border-radius:9px;padding:14px 17px;margin-top:20px;color:var(--muted);font-size:12px;line-height:1.75;}
+  .note b{color:var(--text);}
+  .refresh{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;cursor:pointer;margin-bottom:18px;}
+  .refresh:hover{border-color:var(--muted);}
+  .auto{margin-left:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);}
+  .casbox{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:15px 18px;margin-bottom:18px;}
+  .casbox.found{border-left:3px solid var(--up);}
+  .casbox.missing{border-left:3px solid var(--muted);}
+  .casttl{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;margin-bottom:5px;}
+  .casnote{font-size:12.5px;color:var(--muted);line-height:1.7;}
+  .casnote b{color:var(--text);}
+  .casnote code{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:#1B2024;
+    border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--amber);}
+  .castbl{margin-top:12px;max-height:260px;overflow-y:auto;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← All sectors</a>
+  <div class="eyebrow"><span>SYNTHETIC CLOSE · PUT-CALL PARITY</span><span id="asof">—</span></div>
+  <h1>What options think the close is</h1>
+  <p class="sub">Since CAS went live on 3 August, the index on screen freezes between 3:15 and 3:35 while options keep trading until 3:40. Put-call parity extracts where the options market thinks the auction will print.</p>
+
+  <button class="refresh" onclick="load()">↻ Refresh</button>
+  <label class="auto"><input type="checkbox" id="autoRef"> auto-refresh every 15s</label>
+
+  <div id="phase"></div>
+  <div id="casbox"></div>
+  <div id="out"><div class="loading">Loading option chains…</div></div>
+
+  <div class="note">
+    <b>How the synthetic is built.</b> For each strike near the money, <b>synthetic = call − put + strike</b>. With European index options that recovers the market's implied forward level. Bid-ask midpoints are used in preference to last traded price, because an LTP on a quiet strike can be minutes stale. Strikes are weighted by spread tightness, traded volume and closeness to the money.<br><br>
+    <b>Why it differs from spot legitimately.</b> The synthetic is a <b>forward</b>, so it sits above or below spot by the cost of carry, and the two converge at expiry. A persistent gap during normal hours is carry, not a signal. It becomes informative in the CAS window, when spot is frozen and the synthetic keeps moving.<br><br>
+    <b>What is not here.</b> NSE's official <b>indicative equilibrium price</b> during the auction is a specialised exchange feed and is not available through Kite. During the window it is published alongside quotes on the NSE website. The synthetic below is an independent, options-derived estimate — related, but not the same number.<br><br>
+    <b>Dispersion is your reliability check.</b> If parity held perfectly, every strike would give the same synthetic. Wide dispersion across strikes means stale or wide quotes, and the consensus should be trusted less. It is flagged when that happens.
+  </div>
+</div>
+
+<script>
+let timer = null;
+
+function pc(v){ return v > 0 ? 'pos' : (v < 0 ? 'neg' : 'neu'); }
+function sgn(v){ return v >= 0 ? '+' : ''; }
+function fmt(n){ return n == null ? '—' : n.toLocaleString('en-IN'); }
+
+function renderPhase(p){
+  const hot = p.phase === 'cas_collection' || p.phase === 'cas_matching';
+  const live = p.phase === 'continuous' || p.phase === 'post_auction';
+  document.getElementById('phase').innerHTML = `
+    <div class="phase ${hot ? 'hot' : (live ? 'live' : 'calm')}">
+      <div class="ptitle">${p.label}</div>
+      <div class="pnote">${p.note}</div>
+      <div class="clock">Continuous 9:15–3:15 · CAS collection 3:15–3:30 (random cutoff 3:28–3:30) · matching ~3:35 · derivatives until 3:40</div>
+    </div>`;
+}
+
+function renderIndex(ix){
+  if(ix.error){
+    return `<div class="card"><div class="chead"><span class="cname">${ix.display}</span></div>
+      <div class="error">${ix.error}</div></div>`;
+  }
+  const syn = ix.synthetic;
+  const fut = ix.future;
+
+  let gap = '';
+  if(syn && syn.consensus){
+    const d = syn.consensus_vs_spot;
+    const dp = syn.consensus_vs_spot_pct;
+    const dir = d > 0 ? 'ABOVE' : 'BELOW';
+    gap = `<div class="gapline">
+      Options imply a level <span class="big ${pc(d)}">${sgn(d)}${d}</span> points (${sgn(dp)}${dp}%) <b>${dir}</b> the spot print of ${fmt(ix.spot)}.
+      ${fut && fut.vs_synthetic != null ? `The future at ${fmt(fut.price)} sits <b>${sgn(fut.vs_synthetic)}${fut.vs_synthetic}</b> versus the synthetic — a large divergence here usually means one of the two is quoting stale.` : ''}
+    </div>`;
+  }
+
+  let unreliable = '';
+  if(syn && !syn.reliable){
+    unreliable = `<div class="warn"><b>Parity is not holding cleanly.</b> The synthetic varies by ${syn.dispersion} points across strikes, which is wider than it should be. That normally means stale or wide quotes rather than a real signal — treat the consensus as approximate.</div>`;
+  }
+
+  const rows = syn ? syn.rows.map(r=>{
+    const isAtm = r.strike === syn.atm_strike;
+    const wide = (r.call_spread_pct != null && r.call_spread_pct > 5) || (r.put_spread_pct != null && r.put_spread_pct > 5);
+    return `<tr class="${isAtm?'atm':''}">
+      <td class="left">${fmt(r.strike)}${isAtm?' · ATM':''}</td>
+      <td>${r.call}</td><td>${r.put}</td>
+      <td class="${wide?'wide':''}">${r.call_spread_pct != null ? r.call_spread_pct+'%' : '—'}</td>
+      <td class="${wide?'wide':''}">${r.put_spread_pct != null ? r.put_spread_pct+'%' : '—'}</td>
+      <td><b>${fmt(r.synthetic)}</b></td>
+      <td class="${pc(r.vs_spot)}">${sgn(r.vs_spot)}${r.vs_spot}</td>
+      <td class="neu">${fmt(r.call_oi)}</td>
+      <td class="neu">${fmt(r.put_oi)}</td>
+    </tr>`;
+  }).join('') : '';
+
+  return `<div class="card">
+    <div class="chead">
+      <span class="cname">${ix.display}</span>
+      <span class="cexp">${ix.name} · expiry ${ix.expiry} · ${ix.days_to_expiry}d${syn ? ` · ${syn.strikes_used} strikes` : ''}</span>
+    </div>
+
+    <div class="row3">
+      <div class="m"><div class="l">Spot (index)</div><div class="v">${fmt(ix.spot)}</div>
+        <div class="s ${pc(ix.spot_chg_pct)}">${ix.spot_chg_pct != null ? sgn(ix.spot_chg_pct)+ix.spot_chg_pct+'% today' : ''}</div></div>
+      <div class="m synth"><div class="l">Synthetic (options)</div><div class="v">${syn ? fmt(syn.consensus) : '—'}</div>
+        <div class="s ${syn?pc(syn.consensus_vs_spot):''}">${syn ? sgn(syn.consensus_vs_spot)+syn.consensus_vs_spot+' vs spot' : 'unavailable'}</div></div>
+      <div class="m fut"><div class="l">Future</div><div class="v">${fut ? fmt(fut.price) : '—'}</div>
+        <div class="s ${fut?pc(fut.basis):''}">${fut ? sgn(fut.basis)+fut.basis+' basis ('+sgn(fut.basis_pct)+fut.basis_pct+'%)' : 'unavailable'}</div></div>
+      <div class="m"><div class="l">Dispersion</div><div class="v" style="font-size:17px;color:${syn && syn.reliable ? 'var(--up)' : 'var(--amber)'}">${syn ? syn.dispersion : '—'}</div>
+        <div class="s">${syn ? (syn.reliable ? 'parity holding' : 'quotes look stale') : ''}</div></div>
+    </div>
+
+    ${unreliable}${gap}
+
+    ${syn ? `<table>
+      <thead><tr><th class="left">Strike</th><th>Call</th><th>Put</th><th>C spr</th><th>P spr</th>
+        <th>Synthetic</th><th>vs spot</th><th>Call OI</th><th>Put OI</th></tr></thead>
+      <tbody>${rows}</tbody></table>` : ''}
+  </div>`;
+}
+
+async function loadCas(){
+  const el = document.getElementById('casbox');
+  try{
+    const r = await fetch('/api/cas-indicative');
+    if(r.status === 401) return;
+    const d = await r.json();
+    if(d.available){
+      const rows = d.stocks.slice(0, 60).map(x=>`<tr>
+        <td class="left">${x.symbol}</td><td>${x.indicative ?? '—'}</td>
+        <td class="neu">${x.reference ?? '—'}</td><td class="neu">${fmt(x.buy_qty)}</td>
+        <td class="neu">${fmt(x.sell_qty)}</td></tr>`).join('');
+      el.innerHTML = `<div class="casbox found">
+        <div class="casttl">NSE indicative prices — live (${d.count} stocks)</div>
+        <div class="casnote">Straight from the exchange via <code>${d.endpoint}</code>. These are the official equilibrium prices the auction is currently pointing at, per stock.</div>
+        <div class="castbl"><table><thead><tr><th class="left">Symbol</th><th>Indicative</th><th>Reference</th><th>Buy qty</th><th>Sell qty</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </div>`;
+    }else{
+      el.innerHTML = `<div class="casbox missing">
+        <div class="casttl">NSE indicative prices — not connected</div>
+        <div class="casnote">${d.reason || 'Unavailable.'}<br><br>
+        NSE does not publish a documented API for this. To find the right endpoint, open
+        <code>/api/probe-nse-cas</code> <b>between 3:15 and 3:35pm</b> — it tries a list of candidate URLs and saves whichever works. Outside the auction window the endpoints can return nothing even when correct, so probing at other times proves little.<br><br>
+        The synthetic below is an independent options-derived estimate and works regardless.</div>
+      </div>`;
+    }
+  }catch(e){
+    el.innerHTML = '';
+  }
+}
+
+async function load(){
+  loadCas();
+  try{
+    const res = await fetch('/api/synthetic');
+    if(res.status === 401){ window.location.href='/login'; return; }
+    const d = await res.json();
+    if(d.error){ document.getElementById('out').innerHTML = `<div class="error">${d.error}</div>`; return; }
+    document.getElementById('asof').textContent = d.as_of;
+    renderPhase(d.phase);
+    document.getElementById('out').innerHTML = d.indices.map(renderIndex).join('');
+  }catch(e){
+    document.getElementById('out').innerHTML = `<div class="error">Failed: ${e.message}</div>`;
+  }
+}
+
+document.getElementById('autoRef').addEventListener('change', e=>{
+  if(timer){ clearInterval(timer); timer = null; }
+  if(e.target.checked) timer = setInterval(load, 15000);
+});
+
+load();
+</script>
+</body>
+</html>

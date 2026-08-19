@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crude vs Natural Gas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B;
+    --amber:#E8B84B; --violet:#9B7BFF; --cyan:#4BC8E8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:26px 18px 70px;}
+  .wrap{max-width:1040px;margin:0 auto;}
+  .back{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:12px;}
+  .back:hover{color:var(--text);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 18px;max-width:700px;line-height:1.6;}
+
+  .truth{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:10px;padding:15px 18px;margin-bottom:22px;font-size:12.5px;color:var(--muted);line-height:1.75;}
+  .truth b{color:var(--text);}
+
+  .now{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:11px;margin-bottom:20px;overflow:visible;}
+  .now .n:first-child{border-radius:10px 0 0 10px;}
+  .now .n:last-child{border-radius:0 10px 10px 0;}
+  .n{background:var(--panel);padding:14px 16px;}
+  .n .l{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .n .v{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:21px;}
+  .n .s{font-size:11px;color:var(--muted);margin-top:3px;}
+  .z-hi{color:var(--down);} .z-lo{color:var(--up);} .z-mid{color:var(--text);}
+
+  .chartbox{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px 10px;margin-bottom:20px;}
+  .chtitle{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;margin-bottom:2px;}
+  .chnote{font-size:11.5px;color:var(--muted);margin-bottom:12px;}
+  svg{width:100%;height:auto;display:block;}
+
+  .sec{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;margin:26px 0 4px;}
+  .secnote{font-size:12px;color:var(--muted);margin-bottom:12px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:11px;overflow:hidden;}
+  thead th{text-align:right;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:11px 12px;border-bottom:1px solid var(--border);font-weight:500;}
+  thead th.left{text-align:left;padding-left:15px;}
+  tbody td{padding:10px 12px;border-bottom:1px solid #1E2327;font-size:12.5px;font-family:'JetBrains Mono',monospace;text-align:right;}
+  tbody td.left{text-align:left;padding-left:15px;font-family:'Inter',sans-serif;font-weight:600;}
+  tbody tr:last-child td{border-bottom:none;}
+  .pos{color:var(--up);} .neg{color:var(--down);} .neu{color:var(--muted);}
+
+  .yearly{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+  .yr{font-family:'JetBrains Mono',monospace;font-size:10.5px;background:#1B2024;border:1px solid var(--border);border-radius:5px;padding:4px 9px;}
+
+  .warn{background:#1A1206;border:1px solid #3D2E10;border-left:3px solid var(--amber);border-radius:9px;padding:15px 18px;margin-top:18px;color:#D7C9A8;font-size:12.5px;line-height:1.8;}
+  .warn b{color:#F0DFB8;}
+  .tfbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+  .tflabel{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+  .tfbtn{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);color:var(--muted);padding:8px 15px;border-radius:7px;cursor:pointer;}
+  .tfbtn:hover{color:var(--text);}
+  .tfbtn.active{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:700;}
+
+  .n{position:relative;cursor:help;}
+  .n .l::after{content:'?';display:inline-block;margin-left:5px;width:13px;height:13px;line-height:13px;
+    border-radius:50%;background:#2A3036;color:var(--muted);font-size:9px;text-align:center;vertical-align:middle;
+    transition:background .15s,color .15s;}
+  .n:hover .l::after{background:var(--amber);color:#1A1205;}
+  .tip{position:absolute;left:0;top:100%;margin-top:9px;width:340px;max-width:88vw;
+    background:#1E2429;border:1px solid #454E56;border-radius:9px;padding:13px 15px;
+    font-family:'Inter',sans-serif;font-size:12px;line-height:1.7;color:#C3CACF;
+    opacity:0;visibility:hidden;transition:opacity .14s;z-index:9999;
+    box-shadow:0 10px 30px rgba(0,0,0,.75);text-align:left;font-weight:400;
+    pointer-events:none;}
+  .tip::before{content:'';position:absolute;top:-6px;left:22px;width:10px;height:10px;
+    background:#1E2429;border-left:1px solid #454E56;border-top:1px solid #454E56;transform:rotate(45deg);}
+  .n:nth-child(n+4) .tip::before{left:auto;right:22px;}
+  .tip b{color:var(--text);font-weight:600;}
+  .tip .warnline{color:var(--amber);display:block;margin-top:7px;}
+  .n:hover .tip{opacity:1;visibility:visible;}
+  .n:nth-child(n+4) .tip{left:auto;right:0;}
+
+  .chartwrap{position:relative;}
+  .chartwrap svg{cursor:crosshair;}
+  .xh-line{stroke:#8B949C;stroke-width:1;stroke-dasharray:3 3;pointer-events:none;opacity:0;}
+  .xh-dot{fill:#fff;stroke:#0A0C0E;stroke-width:1.5;pointer-events:none;opacity:0;}
+  .xh-box{position:absolute;pointer-events:none;background:#1E2429;border:1px solid #4A545C;
+    border-radius:8px;padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:11.5px;
+    color:var(--text);white-space:nowrap;opacity:0;transition:opacity .1s;z-index:60;
+    box-shadow:0 6px 22px rgba(0,0,0,.7);line-height:1.65;}
+  .xh-box .d{color:var(--muted);font-size:10.5px;margin-bottom:3px;}
+  .xh-box .r{font-weight:700;font-size:14px;}
+  .xh-box .m{color:var(--muted);font-size:10.5px;}
+  .xh-box .zv{font-weight:700;}
+  .xh-lbl{fill:#E7EAEC;font-family:monospace;font-size:10.5px;pointer-events:none;opacity:0;}
+  .xh-lblbg{fill:#3A4148;pointer-events:none;opacity:0;}
+
+  .mcxbar{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 6px;}
+  .mcxcard{display:block;text-decoration:none;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:15px 17px;transition:border-color .15s,transform .15s;}
+  .mcxcard:hover{border-color:var(--amber);transform:translateY(-1px);}
+  .mcxcard .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+  .mcxcard .nm{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;color:var(--text);}
+  .mcxcard .px{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:20px;color:var(--text);}
+  .mcxcard .chg{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;}
+  .mcxcard .chg.pos{color:var(--up);} .mcxcard .chg.neg{color:var(--down);}
+  .mcxcard .meta{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted);margin-top:7px;line-height:1.6;}
+  .mcxcard .cta{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--amber);margin-top:9px;}
+  .mcxcard .err{color:var(--down);font-size:12px;}
+  .mcxnote{background:var(--panel);border:1px solid var(--border);border-left:2px solid var(--amber);
+    border-radius:0 10px 10px 0;padding:12px 16px;font-size:12px;color:var(--muted);line-height:1.75;margin-bottom:18px;}
+  .mcxnote b{color:var(--text);}
+  .loading,.error{color:var(--muted);font-size:13px;padding:22px 4px;}
+  .error{color:var(--down);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← All sectors</a>
+  <div class="eyebrow"><span>CRUDE ↔ NATURAL GAS</span><span id="asof">—</span></div>
+  <h1>Oil-to-gas ratio</h1>
+  <p class="sub">WTI crude divided by Henry Hub natural gas, with the mean-reversion question tested rather than assumed.</p>
+
+  <div class="truth">
+    <b>They are neither reliably inverse nor reliably direct.</b> Both are energy, so a broad demand shock moves them together — but past that they decouple. Crude is global and transportable; gas is regional and expensive to ship, so US, European and Asian gas can diverge for months. Gas demand is strongly seasonal, crude far less so. And since shale, US gas supply follows its own dynamics rather than oil's. The measured correlation below will show you exactly how unstable this is year to year.<br><br>
+    <b>The ratio is the tradeable object, not the direction.</b> Energy equivalence is roughly 6:1 by heat content, but the price ratio has ranged from about 5 to over 60. It mean-reverts — slowly, and with excursions that will take you out before it does. That's what the backtest below measures.
+  </div>
+
+  <div class="mcxbar" id="mcxbar"></div>
+  <div class="mcxnote" id="mcxnote" style="display:none;">
+    <b>These are MCX front-month futures, not the CFD quote.</b> Click either card for its liquidity map —
+    the same volume-weighted zones used for stocks. MCX is a centralised exchange, so its volume is real
+    contracts traded; CFD platforms publish tick volume (a count of quote updates from one broker), which
+    would silently corrupt a method that draws 55 of its 100 strength points from volume.
+    Zones are built from <b>that contract's own history only</b> — no splicing across expiries, so there are
+    no rollover artifacts, but depth is limited to the contract's listed life and <b>zones reset at each roll</b>.
+    Expect a small constant offset against a CFD quote.
+  </div>
+
+  <div class="tfbar">
+    <span class="tflabel">Timeframe</span>
+    <button class="tfbtn active" data-tf="1d">Daily</button>
+    <button class="tfbtn" data-tf="4h">4 hour</button>
+    <button class="tfbtn" data-tf="125m">125 min</button>
+    <button class="tfbtn" data-tf="75m">75 min</button>
+  </div>
+
+  <div id="out"><div class="loading">Fetching crude and gas history…</div></div>
+</div>
+
+<script>
+function zc(z){ return z >= 1.5 ? 'z-hi' : (z <= -1.5 ? 'z-lo' : 'z-mid'); }
+function pc(v){ return v > 0 ? 'pos' : (v < 0 ? 'neg' : 'neu'); }
+
+
+function fmtFullDate(iso, intraday){
+  const d = new Date(iso.length > 10 ? iso : iso + 'T00:00:00');
+  const base = d.toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+  if(!intraday) return base;
+  return base + ' ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+
+// Attach a crosshair that snaps to the nearest real data point, so the readout
+// is an actual bar rather than an interpolated guess off the pixel position.
+function wireCrosshair(wrap, hist, intraday){
+  const svg = wrap.querySelector('svg');
+  const box = wrap.querySelector('.xh-box');
+  if(!svg || !box || !hist.length) return;
+
+  const PL=+svg.dataset.pl, PR=+svg.dataset.pr, PT=+svg.dataset.pt, PB=+svg.dataset.pb;
+  const W=+svg.dataset.w, H=+svg.dataset.h;
+  const yMin=+svg.dataset.ymin, yMax=+svg.dataset.ymax;
+  const isZ = svg.dataset.chart === 'z';
+
+  const vLine = svg.querySelector('.xh-v');
+  const hLine = svg.querySelector('.xh-h');
+  const dot   = svg.querySelector('.xh-dot');
+  const ybg   = svg.querySelector('.xh-ybg');
+  const ytxt  = svg.querySelector('.xh-ytxt');
+  const hit   = svg.querySelector('.xh-hit');
+
+  const xOf = i => PL + i/(hist.length-1)*(W-PL-PR);
+  const yOf = v => PT + (1-(v-yMin)/(yMax-yMin))*(H-PT-PB);
+
+  function show(on){
+    [vLine,hLine,dot,ybg,ytxt].forEach(el=>{ if(el) el.style.opacity = on ? '1' : '0'; });
+    box.style.opacity = on ? '1' : '0';
+  }
+
+  function move(evt){
+    const rect = svg.getBoundingClientRect();
+    const px = (evt.clientX - rect.left) / rect.width * W;
+    const py = (evt.clientY - rect.top) / rect.height * H;
+    if(px < PL || px > W-PR){ show(false); return; }
+
+    // snap to nearest bar
+    const frac = (px - PL) / (W - PL - PR);
+    let i = Math.round(frac * (hist.length - 1));
+    i = Math.max(0, Math.min(hist.length - 1, i));
+    const p = hist[i];
+    const val = isZ ? Math.max(-3.5, Math.min(3.5, p.z)) : p.ratio;
+
+    const sx = xOf(i);
+    vLine.setAttribute('x1', sx); vLine.setAttribute('x2', sx);
+    hLine.setAttribute('y1', py); hLine.setAttribute('y2', py);
+    dot.setAttribute('cx', sx); dot.setAttribute('cy', yOf(val));
+    dot.style.fill = isZ ? '#9B7BFF' : '#E8B84B';
+
+    // price/level label on the y-axis at the cursor height
+    const cursorVal = yMin + (1 - (py - PT)/(H - PT - PB)) * (yMax - yMin);
+    ybg.setAttribute('x', PL - 50); ybg.setAttribute('y', py - 8.5);
+    ytxt.setAttribute('x', PL - 6); ytxt.setAttribute('y', py + 3.5);
+    ytxt.textContent = isZ ? (cursorVal>=0?'+':'') + cursorVal.toFixed(2) : cursorVal.toFixed(2);
+
+    // floating readout, flipped to the left near the right edge
+    const relX = (sx / W) * rect.width;
+    const nearRight = relX > rect.width * 0.62;
+    box.style.left = nearRight ? 'auto' : (relX + 16) + 'px';
+    box.style.right = nearRight ? (rect.width - relX + 16) + 'px' : 'auto';
+    box.style.top = '14px';
+
+    const zc2 = p.z >= 2 ? '#F0554B' : (p.z <= -2 ? '#33D17A' : '#E7EAEC');
+    box.innerHTML = isZ
+      ? `<div class="d">${fmtFullDate(p.date, intraday)}</div>
+         <div class="r" style="color:${zc2}">z ${p.z>=0?'+':''}${p.z}</div>
+         <div class="m">ratio ${p.ratio} · mean ${p.mean}</div>`
+      : `<div class="d">${fmtFullDate(p.date, intraday)}</div>
+         <div class="r">${p.ratio}</div>
+         <div class="m">mean ${p.mean} · <span class="zv" style="color:${zc2}">z ${p.z>=0?'+':''}${p.z}</span></div>`;
+    show(true);
+  }
+
+  hit.addEventListener('mousemove', move);
+  hit.addEventListener('mouseenter', ()=>show(true));
+  svg.addEventListener('mouseleave', ()=>show(false));
+  // touch support for mobile
+  hit.addEventListener('touchmove', e=>{ if(e.touches[0]) move(e.touches[0]); }, {passive:true});
+  hit.addEventListener('touchstart', e=>{ if(e.touches[0]) move(e.touches[0]); }, {passive:true});
+}
+
+function fmtAxisDate(iso, intraday){
+  const d = new Date(iso.length > 10 ? iso : iso + 'T00:00:00');
+  if(intraday) return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+  return d.toLocaleDateString('en-IN',{month:'short',year:'2-digit'}).replace(' ', " '");
+}
+
+function ratioChart(hist, intraday){
+  if(!hist.length) return '';
+  const W = 1000, H = 280, PL = 48, PR = 58, PT = 14, PB = 30;
+  const vals = hist.map(p=>p.ratio);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi-lo)*0.08 || 1;
+  const yMin = lo-pad, yMax = hi+pad;
+  const x = i => PL + i/(hist.length-1)*(W-PL-PR);
+  const y = v => PT + (1-(v-yMin)/(yMax-yMin))*(H-PT-PB);
+
+  const line = hist.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.ratio).toFixed(1)}`).join('');
+  const meanLine = hist.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.mean).toFixed(1)}`).join('');
+
+  const dots = hist.map((p,i)=> Math.abs(p.z) >= 2
+    ? `<circle cx="${x(i).toFixed(1)}" cy="${y(p.ratio).toFixed(1)}" r="1.9" fill="${p.z>0?'#F0554B':'#33D17A'}" opacity=".9"/>` : '').join('');
+
+  const ticks = [0,0.25,0.5,0.75,1].map(f=>{
+    const v = yMin + f*(yMax-yMin);
+    return `<line x1="${PL}" y1="${y(v).toFixed(1)}" x2="${W-PR}" y2="${y(v).toFixed(1)}" stroke="#1E2327" stroke-width="1"/>
+            <text x="${PL-7}" y="${(y(v)+3.5).toFixed(1)}" fill="#8B949C" font-size="10.5" font-family="monospace" text-anchor="end">${v.toFixed(1)}</text>`;
+  }).join('');
+
+  // 6 labels so the time axis is actually readable, last one always the newest bar
+  const idxs = [];
+  for(let k=0;k<6;k++) idxs.push(Math.round(k*(hist.length-1)/5));
+  const xlabels = idxs.map(i=>
+    `<text x="${x(i).toFixed(1)}" y="${H-9}" fill="#8B949C" font-size="10.5" font-family="monospace" text-anchor="middle">${fmtAxisDate(hist[i].date, intraday)}</text>`).join('');
+
+  // mark where we are now
+  const li = hist.length-1, lp = hist[li];
+  const marker = `
+    <line x1="${x(li).toFixed(1)}" y1="${PT}" x2="${x(li).toFixed(1)}" y2="${H-PB}" stroke="#E8B84B" stroke-width="1" stroke-dasharray="2 3" opacity=".5"/>
+    <circle cx="${x(li).toFixed(1)}" cy="${y(lp.ratio).toFixed(1)}" r="4" fill="#E8B84B" stroke="#0A0C0E" stroke-width="1.5"/>
+    <rect x="${(W-PR+4).toFixed(1)}" y="${(y(lp.ratio)-10).toFixed(1)}" width="50" height="20" rx="4" fill="#E8B84B"/>
+    <text x="${(W-PR+29).toFixed(1)}" y="${(y(lp.ratio)+4).toFixed(1)}" fill="#1A1205" font-size="11" font-weight="700" font-family="monospace" text-anchor="middle">${lp.ratio}</text>`;
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
+      data-pl="${PL}" data-pr="${PR}" data-pt="${PT}" data-pb="${PB}"
+      data-w="${W}" data-h="${H}" data-ymin="${yMin}" data-ymax="${yMax}" data-chart="ratio">
+    ${ticks}${xlabels}
+    <path d="${meanLine}" fill="none" stroke="#8B949C" stroke-width="1.2" stroke-dasharray="4 4" opacity=".75"/>
+    <path d="${line}" fill="none" stroke="#E8B84B" stroke-width="1.7"/>
+    ${dots}${marker}
+    <line class="xh-line xh-v" x1="0" y1="${PT}" x2="0" y2="${H-PB}"/>
+    <line class="xh-line xh-h" x1="${PL}" y1="0" x2="${W-PR}" y2="0"/>
+    <rect class="xh-lblbg xh-ybg" x="0" y="0" width="46" height="17" rx="3"/>
+    <text class="xh-lbl xh-ytxt" x="0" y="0" text-anchor="end"></text>
+    <circle class="xh-dot" r="4.5"/>
+    <rect x="${PL}" y="${PT}" width="${W-PL-PR}" height="${H-PT-PB}" fill="transparent" class="xh-hit"/>
+  </svg>`;
+}
+
+function zChart(hist, intraday){
+  if(!hist.length) return '';
+  const W=1000,H=165,PL=48,PR=58,PT=12,PB=26;
+  const x = i => PL + i/(hist.length-1)*(W-PL-PR);
+  const y = v => PT + (1-(v+3.5)/7)*(H-PT-PB);
+  const cl = v => Math.max(-3.5, Math.min(3.5, v));
+  const line = hist.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(cl(p.z)).toFixed(1)}`).join('');
+  const bands = [2,-2].map(v=>`<line x1="${PL}" y1="${y(v).toFixed(1)}" x2="${W-PR}" y2="${y(v).toFixed(1)}" stroke="${v>0?'#F0554B':'#33D17A'}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+    <text x="${PL-7}" y="${(y(v)+3.5).toFixed(1)}" fill="${v>0?'#F0554B':'#33D17A'}" font-size="10.5" font-family="monospace" text-anchor="end">${v>0?'+2':'-2'}</text>`).join('');
+  const idxs=[]; for(let k=0;k<6;k++) idxs.push(Math.round(k*(hist.length-1)/5));
+  const xlabels = idxs.map(i=>`<text x="${x(i).toFixed(1)}" y="${H-7}" fill="#8B949C" font-size="10" font-family="monospace" text-anchor="middle">${fmtAxisDate(hist[i].date, intraday)}</text>`).join('');
+  const li=hist.length-1, lz=cl(hist[li].z);
+  const marker = `<circle cx="${x(li).toFixed(1)}" cy="${y(lz).toFixed(1)}" r="4" fill="#9B7BFF" stroke="#0A0C0E" stroke-width="1.5"/>
+    <rect x="${(W-PR+4).toFixed(1)}" y="${(y(lz)-10).toFixed(1)}" width="50" height="20" rx="4" fill="#9B7BFF"/>
+    <text x="${(W-PR+29).toFixed(1)}" y="${(y(lz)+4).toFixed(1)}" fill="#0D0820" font-size="11" font-weight="700" font-family="monospace" text-anchor="middle">${hist[li].z>=0?'+':''}${hist[li].z}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"
+      data-pl="${PL}" data-pr="${PR}" data-pt="${PT}" data-pb="${PB}"
+      data-w="${W}" data-h="${H}" data-ymin="-3.5" data-ymax="3.5" data-chart="z">
+    <line x1="${PL}" y1="${y(0).toFixed(1)}" x2="${W-PR}" y2="${y(0).toFixed(1)}" stroke="#2A3036" stroke-width="1"/>
+    ${bands}${xlabels}
+    <path d="${line}" fill="none" stroke="#9B7BFF" stroke-width="1.6"/>
+    ${marker}
+    <line class="xh-line xh-v" x1="0" y1="${PT}" x2="0" y2="${H-PB}"/>
+    <line class="xh-line xh-h" x1="${PL}" y1="0" x2="${W-PR}" y2="0"/>
+    <rect class="xh-lblbg xh-ybg" x="0" y="0" width="46" height="17" rx="3"/>
+    <text class="xh-lbl xh-ytxt" x="0" y="0" text-anchor="end"></text>
+    <circle class="xh-dot" r="4.5"/>
+    <rect x="${PL}" y="${PT}" width="${W-PL-PR}" height="${H-PT-PB}" fill="transparent" class="xh-hit"/>
+  </svg>`;
+}
+
+function revTable(rev, entryZ){
+  const keys = Object.keys(rev);
+  if(!keys.length) return '<div class="loading">No extremes beyond that threshold in the sample.</div>';
+  const rows = keys.map(k=>{
+    const r = rev[k];
+    const [side, h] = k.split('_');
+    const unit = h.replace('d', '') + (window.__intraday ? ' bars' : ' days');
+    const label = side === 'high'
+      ? `Ratio z ≥ +${entryZ} → short ratio, ${unit}`
+      : `Ratio z ≤ −${entryZ} → long ratio, ${unit}`;
+    return `<tr>
+      <td class="left">${label}</td>
+      <td>${r.trades}</td>
+      <td class="${pc(r.avg_pnl_pct)}">${r.avg_pnl_pct >= 0 ? '+' : ''}${r.avg_pnl_pct}%</td>
+      <td class="${pc(r.median_pnl_pct)}">${r.median_pnl_pct >= 0 ? '+' : ''}${r.median_pnl_pct}%</td>
+      <td>${r.win_rate}%</td>
+      <td class="neg">${r.worst_trade_pct}%</td>
+      <td class="neg">${r.avg_max_adverse_pct}%</td>
+      <td class="neg">${r.worst_max_adverse_pct}%</td>
+    </tr>`;
+  }).join('');
+  return `<table><thead><tr>
+    <th class="left">Setup</th><th>Trades</th><th>Avg</th><th>Median</th><th>Win</th>
+    <th>Worst trade</th><th>Avg drawdown</th><th>Worst drawdown</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function loadMcx(){
+  const bar = document.getElementById('mcxbar');
+  const note = document.getElementById('mcxnote');
+  try{
+    const res = await fetch('/api/mcx-energy-quote');
+    if(res.status === 401){ window.location.href = '/login'; return; }
+    const d = await res.json();
+    const q = d.quotes || {};
+    const cards = ['NATURALGAS','CRUDEOIL'].map(k=>{
+      const v = q[k];
+      if(!v) return '';
+      if(v.error){
+        return `<div class="mcxcard"><div class="nm">${k === 'NATURALGAS' ? 'Natural Gas' : 'Crude Oil'} (MCX)</div>
+          <div class="err">${v.error}</div>
+          <div class="meta">If this says the contract was not found, MCX may not be enabled on this Kite subscription.</div></div>`;
+      }
+      const cls = (v.chg_pct ?? 0) >= 0 ? 'pos' : 'neg';
+      const chg = v.chg_pct === null || v.chg_pct === undefined ? '—'
+        : `${v.chg_pct >= 0 ? '+' : ''}${v.chg_pct}%`;
+      const expiryWarn = (v.days_to_expiry !== null && v.days_to_expiry <= 7)
+        ? ` &middot; <span style="color:var(--amber)">rolls soon</span>` : '';
+      return `<a class="mcxcard" href="/liquidity/${v.symbol}">
+        <div class="top"><span class="nm">${v.label} <span style="color:var(--muted);font-size:11px;">MCX</span></span>
+          <span class="px">${v.ltp !== null && v.ltp !== undefined ? Number(v.ltp).toLocaleString('en-IN') : '—'}</span></div>
+        <div class="top"><span class="meta" style="margin-top:2px;">per ${v.unit} &middot; lot ${v.lot_size ?? '—'}</span>
+          <span class="chg ${cls}">${chg}</span></div>
+        <div class="meta">${v.tradingsymbol || ''} &middot; expiry ${v.expiry || '—'}${
+          v.days_to_expiry !== null && v.days_to_expiry !== undefined ? ` (${v.days_to_expiry}d)` : ''}${expiryWarn}<br>
+          volume ${v.volume ? Number(v.volume).toLocaleString('en-IN') : '—'} &middot; OI ${v.oi ? Number(v.oi).toLocaleString('en-IN') : '—'}</div>
+        <div class="cta">Open liquidity map &rarr;</div>
+      </a>`;
+    }).join('');
+    bar.innerHTML = cards;
+    note.style.display = '';
+  }catch(e){
+    bar.innerHTML = `<div class="mcxcard"><div class="err">MCX quotes unavailable: ${e.message}</div></div>`;
+  }
+}
+loadMcx();
+
+let currentTf = '1d';
+
+document.querySelectorAll('.tfbtn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    currentTf = b.dataset.tf;
+    document.querySelectorAll('.tfbtn').forEach(x=>x.classList.toggle('active', x===b));
+    load();
+  });
+});
+
+async function load(){
+  const out = document.getElementById('out');
+  out.innerHTML = '<div class="loading">Fetching crude and gas history…</div>';
+  try{
+    const res = await fetch(`/api/energy?z=2&tf=${currentTf}`);
+    if(res.status===401){ window.location.href='/login'; return; }
+    const d = await res.json();
+    if(d.error){ out.innerHTML = `<div class="error">${d.error}</div>`; return; }
+    document.getElementById('asof').textContent =
+      `${d.timeframe_label.toUpperCase()} · ${d.bars} BARS · ${d.as_of}${d.cached ? ' · CACHED' : ''}`;
+
+    const c = d.current, co = d.correlation;
+    window.__intraday = !!d.intraday;
+    const smallSample = Object.values(d.reversion).some(r=>r.trades < 8);
+
+    const stretch = Math.abs(c.z) >= 2 ? 'stretched far from' : (Math.abs(c.z) >= 1 ? 'moderately above' : 'close to');
+    const side = c.z >= 0 ? 'crude is expensive relative to gas' : 'gas is expensive relative to crude';
+    const spreadTrade = c.z >= 0 ? 'short crude / long gas' : 'long crude / short gas';
+    const extreme = Math.abs(c.z) >= 2;
+
+    out.innerHTML = `
+      <div class="now">
+        <div class="n">
+          <div class="l">Ratio now</div><div class="v ${zc(c.z)}">${c.ratio}</div>
+          <div class="s">crude $${c.crude} / gas $${c.gas}</div>
+          <div class="tip"><b>In plain terms:</b> one barrel of oil costs the same as <b>${c.ratio} units</b> of gas right now.<br><br>
+          If this number goes <b>up</b>, oil is getting pricier compared to gas. If it goes <b>down</b>, gas is catching up.
+          <span class="warnline">This does NOT tell you if gas is going up or down. Oil and gas could both be crashing and this number would stay the same. It only compares them to each other.</span></div>
+        </div>
+        <div class="n">
+          <div class="l">Z-score</div><div class="v ${zc(c.z)}">${c.z >= 0 ? '+' : ''}${c.z}</div>
+          <div class="s">vs trailing mean ${c.mean}</div>
+          <div class="tip"><b>In plain terms:</b> is the ratio unusually high or low compared to its recent normal?<br><br>
+          Right now it's <b>${Math.abs(c.z).toFixed(2)}</b> ${c.z >= 0 ? 'above' : 'below'} normal — ${Math.abs(c.z) >= 2 ? '<b>very unusual</b>' : (Math.abs(c.z) >= 1 ? 'a bit unusual' : '<b>pretty normal</b>')}.<br><br>
+          Translation: <b>${side}</b> at the moment.<br><br>
+          Someone betting this snaps back to normal would <b>${spreadTrade}</b> — buying the cheap one and selling the expensive one at the same time.
+          <span class="warnline">${extreme ? 'This IS at an extreme. But look at the "worst drawdown" numbers in the table below before doing anything — the ratio can get much more extreme before it comes back.' : 'Not extreme yet. Traders using this method usually wait for +2 or -2. Most of the time it sits where it is now, which is why there is no signal here.'}</span></div>
+        </div>
+        <div class="n">
+          <div class="l">Percentile</div><div class="v">${c.percentile}%</div>
+          <div class="s">of ${d.bars} bars sampled</div>
+          <div class="tip"><b>In plain terms:</b> out of all the history we checked, the ratio was lower than today <b>${c.percentile}%</b> of the time.<br><br>
+          So oil is currently <b>${c.percentile >= 70 ? 'expensive' : (c.percentile <= 30 ? 'cheap' : 'normally priced')}</b> compared to gas by historical standards.
+          <span class="warnline">Careful: "expensive vs history" does not mean "about to fall." The world changes — new gas supply, new export terminals, changed demand. Sometimes a new normal is simply higher than the old one.</span></div>
+        </div>
+        <div class="n">
+          <div class="l">Range</div><div class="v" style="font-size:16px;">${d.range.min} – ${d.range.max}</div>
+          <div class="s">median ${d.range.median}</div>
+          <div class="tip"><b>In plain terms:</b> the lowest and highest this ratio has been in our data, with the middle value.<br><br>
+          By pure energy content, oil "should" be worth about <b>6×</b> gas. It has been nowhere near that for years, because you cannot simply swap one fuel for the other in most uses.
+          <span class="warnline">This is your reality check on risk. The gap between ${d.range.min} and ${d.range.max} shows how far this can move against you before it ever comes back.</span></div>
+        </div>
+        <div class="n">
+          <div class="l">Gas volatility</div><div class="v" style="color:var(--down);">${co.vol_ratio}×</div>
+          <div class="s">${co.gas_ann_vol_pct}% vs crude ${co.crude_ann_vol_pct}%</div>
+          <div class="tip"><b>In plain terms:</b> gas jumps around <b>${co.vol_ratio}× more</b> than oil does.<br><br>
+          So if you put the same amount of money into each, the gas side will cause most of your profit and most of your loss. For equal risk, your gas position should be about <b>${co.vol_ratio}× smaller</b> than your oil position.
+          <span class="warnline">This is the mistake that catches people out. Putting equal rupees in both legs feels balanced, but it is not — you end up mostly betting on gas without meaning to.</span></div>
+        </div>
+      </div>
+      </div>
+
+      <div class="chartbox">
+        <div class="chtitle">Oil-to-gas ratio</div>
+        <div class="chnote">Gold line is the ratio; dashed grey is its trailing mean. Dots mark bars beyond ±2 standard deviations — red when crude is expensive relative to gas, green when cheap. The gold dot on the right is now.<br>
+        <b style="color:var(--text);">${d.timeframe_label}</b> · ${d.history.length} points plotted · <b style="color:var(--text);">${fmtAxisDate(d.history[0].date, d.intraday)} → ${fmtAxisDate(d.history[d.history.length-1].date, d.intraday)}</b></div>
+        <div class="chartwrap">${ratioChart(d.history, d.intraday)}<div class="xh-box"></div></div>
+      </div>
+
+      <div class="chartbox">
+        <div class="chtitle">Z-score</div>
+        <div class="chnote">How stretched the ratio is against its own recent history. Note how long it can sit beyond a band without reverting.</div>
+        <div class="chartwrap">${zChart(d.history, d.intraday)}<div class="xh-box"></div></div>
+      </div>
+
+      <div class="sec">Are they correlated at all?</div>
+      <div class="secnote">Daily-return correlation, overall and by year. Watch whether the sign is stable — if it flips, there is no fixed relationship to trade.</div>
+      <div class="chartbox">
+        <div style="font-family:'Space Grotesk';font-weight:700;font-size:24px;" class="${pc(co.overall_corr)}">${co.overall_corr >= 0 ? '+' : ''}${co.overall_corr}</div>
+        <div class="chnote">overall daily-return correlation across ${co.n} sessions — explains ${(co.overall_corr*co.overall_corr*100).toFixed(1)}% of daily moves</div>
+        <div class="yearly">${co.yearly.map(y=>`<span class="yr">${y.year} <b class="${pc(y.corr)}">${y.corr >= 0 ? '+' : ''}${y.corr}</b></span>`).join('')}</div>
+      </div>
+
+      <div class="sec">Does the ratio actually mean-revert?</div>
+      <div class="secnote">Entering when the ratio is beyond ±2 standard deviations, held for a fixed horizon, non-overlapping trades. Drawdown columns show what you would have endured before the outcome arrived.</div>
+      ${revTable(d.reversion, d.entry_z)}
+
+      ${smallSample ? `<div class="warn"><b>Small sample warning.</b> Some setups here have fewer than 8 trades. Extremes beyond 2 standard deviations are rare by construction, so these results are statistically thin — a single outlier moves the average substantially. Treat them as a rough sketch, not evidence.</div>` : ''}
+
+      ${d.seasonality && d.seasonality.length ? `
+      <div class="sec">Natural gas seasonality</div>
+      <div class="secnote">Average move by calendar month. This is the dominant driver that has nothing to do with crude, and the main reason the two decouple.</div>
+      <table><thead><tr><th class="left">Month</th><th>Avg month</th><th>Up days</th><th>Sessions</th></tr></thead>
+        <tbody>${d.seasonality.map(m=>`<tr>
+          <td class="left">${m.month}</td>
+          <td class="${pc(m.avg_month_pct)}">${m.avg_month_pct >= 0 ? '+' : ''}${m.avg_month_pct}%</td>
+          <td>${m.up_share}%</td><td>${m.n}</td></tr>`).join('')}</tbody></table>` : ''}
+
+      <div class="warn">
+        <b>Before trading this.</b> Natural gas is among the most violent instruments available — the volatility figure above is measured, not rhetorical, and front-month gas has repeatedly moved 20%+ in a week. A ratio trade is two positions, so you carry both legs' risk and both legs' costs.<br><br>
+        Three things this analysis cannot tell you: whether the current regime resembles the historical sample, what the roll cost of holding front-month futures does to returns over the horizons tested, and whether an extreme is extreme because of a structural change rather than a temporary dislocation. Ratios stayed stretched for long stretches historically, and "cheap relative to history" is not the same as "about to revert."
+      </div>`;
+    document.querySelectorAll('.chartwrap').forEach(w=>wireCrosshair(w, d.history, d.intraday));
+  }catch(e){
+    out.innerHTML = `<div class="error">Failed: ${e.message}</div>`;
+  }
+}
+load();
+</script>
+</body>
+</html>

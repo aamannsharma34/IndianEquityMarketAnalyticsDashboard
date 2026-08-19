@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly 200 EMA Scan</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B;
+    --amber:#E8B84B; --violet:#9B7BFF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:26px 18px 70px;}
+  .wrap{max-width:1180px;margin:0 auto;}
+  .back{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:12px;}
+  .back:hover{color:var(--text);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 18px;max-width:680px;line-height:1.6;}
+
+  .midweek{background:#1A1206;border:1px solid #3D2E10;border-left:3px solid var(--amber);border-radius:9px;
+    padding:13px 16px;margin-bottom:18px;color:#D7C9A8;font-size:12.5px;line-height:1.7;}
+  .midweek b{color:#F0DFB8;}
+
+  .ctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px;}
+  .btn{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);
+    color:var(--text);padding:9px 14px;border-radius:8px;cursor:pointer;}
+  .btn:hover{border-color:var(--muted);}
+  select{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--panel);border:1px solid var(--border);
+    color:var(--text);padding:9px 11px;border-radius:8px;cursor:pointer;}
+  .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--panel);border:1px solid var(--border);
+    color:var(--muted);padding:8px 13px;border-radius:20px;cursor:pointer;}
+  .chip:hover{color:var(--text);}
+  .chip.active{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:700;}
+  .chip .cnt{opacity:.6;margin-left:4px;}
+
+  .tbl{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:1000px;}
+  thead th{text-align:right;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);padding:12px 10px;border-bottom:1px solid var(--border);font-weight:500;white-space:nowrap;}
+  thead th.left{text-align:left;padding-left:15px;}
+  tbody td{padding:10px;border-bottom:1px solid #1E2327;font-size:12.5px;font-family:'JetBrains Mono',monospace;text-align:right;white-space:nowrap;}
+  tbody td.left{text-align:left;padding-left:15px;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#171C21;}
+  .fnotag{display:inline-block;width:16px;height:16px;line-height:16px;margin-right:7px;
+    border-radius:3px;background:#9B7BFF26;border:1px solid #9B7BFF55;color:#B9A2FF;
+    font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;text-align:center;
+    vertical-align:middle;cursor:help;}
+  .fnopad{display:inline-block;width:16px;margin-right:7px;}
+  .mismatch{background:#1A1206;border:1px solid #3D2E10;border-left:3px solid var(--amber);
+    border-radius:8px;padding:11px 15px;margin-bottom:14px;color:#D7C9A8;font-size:12.5px;line-height:1.7;}
+  .mismatch b{color:#F0DFB8;}
+  .expx{display:block;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;
+    color:var(--amber);letter-spacing:.03em;cursor:help;margin-top:1px;}
+  a.sym{color:var(--text);text-decoration:none;border-bottom:1px dotted #3A4148;}
+  a.sym:hover{color:var(--amber);border-bottom-color:var(--amber);}
+
+  .tag{display:inline-block;padding:3px 9px;border-radius:5px;font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:700;letter-spacing:.02em;}
+  .t-support{background:#33D17A22;color:var(--up);}
+  .t-breakout{background:#33D17A22;color:var(--up);}
+  .t-reject{background:#F0554B22;color:var(--down);}
+  .t-breakdown{background:#F0554B22;color:var(--down);}
+  .t-test{background:#E8B84B22;color:var(--amber);}
+  .t-at{background:#8B949C22;color:var(--muted);}
+
+  .pos{color:var(--up);} .neg{color:var(--down);} .neu{color:var(--muted);}
+  .volhi{color:var(--amber);font-weight:700;}
+  .warnhist{color:var(--amber);font-weight:700;}
+  .sc{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;}
+  .scbar{height:3px;border-radius:2px;background:var(--border);margin-top:3px;overflow:hidden;}
+  .scbar div{height:100%;background:var(--violet);}
+
+  .loading,.error{color:var(--muted);font-size:13px;padding:24px 16px;}
+  .error{color:var(--down);}
+  .note{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--muted);
+    border-radius:9px;padding:14px 17px;margin-top:20px;color:var(--muted);font-size:12px;line-height:1.75;}
+  .note b{color:var(--text);}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← All sectors</a>
+  <div class="eyebrow"><span>WEEKLY 200 EMA · INTERACTION SCAN</span><span id="asof">—</span></div>
+  <h1>At the 200-week EMA</h1>
+  <p class="sub">NSE stocks whose <b>average</b> daily turnover clears the selected floor, currently touching, holding, rejecting or breaking their 200-week EMA — classified by how they got there and whether volume confirmed it. The gate is <b>average</b> turnover, not today's. Liquidity is a property of the stock, so filtering on a single session made membership arbitrary — the same name passed on a busy day and failed on a quiet one. Whether volume is expanding right now is a separate question, answered by the Vol× column rather than by exclusion.</p>
+
+  <div id="midweek"></div>
+
+  <div class="ctrls">
+    <button class="btn" onclick="load(true)">↻ Run scan</button>
+    <span class="lbl">Min turnover</span>
+    <select id="minCr">
+      <option value="10">₹10 Cr+ avg · widest</option>
+      <option value="20">₹20 Cr+ avg</option>
+      <option value="25" selected>₹25 Cr+ avg · default</option>
+      <option value="50">₹50 Cr+ avg</option>
+      <option value="100">₹100 Cr+ avg · largest only</option>
+    </select>
+  </div>
+
+  <div id="mismatch"></div>
+  <div class="chips" id="chips"></div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr>
+        <th class="left">Stock</th>
+        <th class="left">Interaction</th>
+        <th>Close</th><th>200 WEMA</th><th>Dist</th>
+        <th>Pierce</th><th>Wick</th><th>Vol×</th>
+        <th>Wk chg</th><th>Avg turnover</th><th>History</th><th>Score</th>
+      </tr></thead>
+      <tbody id="tbody"><tr><td colspan="12" class="loading">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <b>Two ways into this list.</b> Most stocks qualify on <b>average</b> turnover clearing the floor — liquidity is a property of the stock, so a single session's figure made membership arbitrary. But a second route admits stocks whose average sits below the floor while they trade <b>three times or more their own norm</b>, provided that expanded turnover still clears the floor in absolute terms. Those rows carry an amber multiple beside the turnover. Excluding them was backwards: a stock running four times its usual volume into a 200-week level is more interesting than a large-cap drifting past one, and a thin stock at five times nothing is still filtered out.<br><br>
+    <b>Why so few results, and what the floor costs you.</b> Only a small share of any universe sits at a 200-week EMA in a given week — that is what makes the level meaningful, so a couple of dozen hits from a few hundred names is the expected yield. But the floor is applied to a <b>single session's</b> turnover, which is noisy: a stock whose normal turnover is ₹20 Cr will pass on a high-volume week and fail on a quiet one. If a name you expected is missing, check its average turnover before assuming the scan is wrong — and widen the floor if its normal level sits below it.<br><br>
+    <b>What each column means.</b> <b>Dist</b> is how far this week's close sits from the EMA. <b>Pierce</b> is how deep the week's low went below it (for support tests) or how far the high went above it (for rejections) — a deep pierce that still closed the right side is a stronger defence than a shallow tag. <b>Wick</b> is the rejection wick as a share of the week's range. <b>Vol×</b> compares this week's volume to the 20-week average; below 1.0 means the level was tested without conviction.<br><br>
+    <b>Score</b> weights confirmation, not attractiveness: volume expansion, pierce depth, wick geometry, and EMA slope agreement. It deliberately penalises levels that have been crossed three or more times recently, since a level price keeps cutting through is not being respected.<br><br>
+    <b>History column.</b> A 200-period EMA needs far more than 200 bars to settle — after only 85 bars past the seed, roughly 43% of the value is still the seed rather than real price action, which is why short history produces numbers well off a full-history chart. This scan now pulls up to 16 years per stock. An amber ⚠ marks any stock where more than 10% of its EMA is still seed influence; treat those values as approximate and check the chart directly.<br><br>
+    <b>The honest caveat.</b> Thousands of stocks touch a long moving average in any given week — a touch alone is not a signal, it is a location. This scan tells you where price is relative to a widely-watched level and how it behaved on arrival. Whether that resolves up or down depends on things not in this data.
+  </div>
+</div>
+
+<script>
+let allHits = [];
+let lastScan = null;
+let filter = 'all';
+let pollTimer = null;
+
+const TAGS = {
+  support_hold:      ['t-support',   'HELD SUPPORT'],
+  breakout:          ['t-breakout',  'BROKE OUT'],
+  resistance_reject: ['t-reject',    'REJECTED'],
+  breakdown:         ['t-breakdown', 'BROKE DOWN'],
+  testing_above:     ['t-test',      'TESTING ABOVE'],
+  testing_below:     ['t-test',      'TESTING BELOW'],
+  at_level:          ['t-at',        'AT LEVEL'],
+};
+
+function pc(v){ return v > 0 ? 'pos' : (v < 0 ? 'neg' : 'neu'); }
+
+function renderMidweek(d){
+  const el = document.getElementById('midweek');
+  const wd = d.weekday;
+  if(wd === 4 || wd === 5 || wd === 6){ el.innerHTML = ''; return; }
+  const names = ['Monday','Tuesday','Wednesday','Thursday'];
+  el.innerHTML = `<div class="midweek"><b>This week is not finished.</b> Today is ${names[wd] || 'mid-week'}, so every reading below is provisional — a stock shown holding its EMA today can close beneath it on Friday, which flips the classification entirely. Weekly signals only settle on Friday's close. Treat this as a watchlist, not a set of confirmed events.</div>`;
+}
+
+function renderChips(){
+  const counts = {};
+  allHits.forEach(h => counts[h.kind] = (counts[h.kind]||0) + 1);
+  const order = ['support_hold','resistance_reject','breakout','breakdown','testing_above','testing_below','at_level'];
+  const chips = [`<button class="chip ${filter==='all'?'active':''}" data-f="all">All<span class="cnt">${allHits.length}</span></button>`];
+  order.forEach(k=>{
+    if(counts[k]) chips.push(`<button class="chip ${filter===k?'active':''}" data-f="${k}">${TAGS[k][1]}<span class="cnt">${counts[k]}</span></button>`);
+  });
+  const bull = allHits.filter(h=>h.bias==='bullish').length;
+  const bear = allHits.filter(h=>h.bias==='bearish').length;
+  if(bull) chips.push(`<button class="chip ${filter==='bullish'?'active':''}" data-f="bullish">Bullish<span class="cnt">${bull}</span></button>`);
+  if(bear) chips.push(`<button class="chip ${filter==='bearish'?'active':''}" data-f="bearish">Bearish<span class="cnt">${bear}</span></button>`);
+  const nf = allHits.filter(h=>h.fno).length;
+  if(nf) chips.push(`<button class="chip ${filter==='fno'?'active':''}" data-f="fno">F&amp;O only<span class="cnt">${nf}</span></button>`);
+  const nx = allHits.filter(h=>h.admitted_via === 'expansion').length;
+  if(nx) chips.push(`<button class="chip ${filter==='expansion'?'active':''}" data-f="expansion">Volume expansion<span class="cnt">${nx}</span></button>`);
+  document.getElementById('chips').innerHTML = chips.join('');
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+    filter = c.dataset.f; renderChips(); renderTable();
+  }));
+}
+
+function renderTable(){
+  const tbody = document.getElementById('tbody');
+  let rows = allHits;
+  if(filter === 'expansion') rows = rows.filter(h=>h.admitted_via === 'expansion');
+  else if(filter === 'fno') rows = rows.filter(h=>h.fno);
+  else if(filter === 'bullish' || filter === 'bearish') rows = rows.filter(h=>h.bias===filter);
+  else if(filter !== 'all') rows = rows.filter(h=>h.kind===filter);
+
+  if(!rows.length){
+    // an empty universe and an over-tight filter look identical on screen but
+    // need completely different responses
+    const g = (lastScan && lastScan.diagnostics) || null;
+    if(!allHits.length && g){
+      tbody.innerHTML = `<tr><td colspan="12" class="loading" style="line-height:1.9;">
+        <b style="color:var(--text);">${lastScan.scanned} stocks scanned, none at their 200-week EMA.</b><br><br>
+        <table class="stbl" style="max-width:460px;margin:8px 0;"><tbody>
+          <tr><td class="left">Had history, simply not at the level</td><td>${g.with_history_no_interaction}</td></tr>
+          <tr><td class="left">Too little history for a 200-week EMA</td><td class="${g.short_history ? 'wide' : ''}">${g.short_history}</td></tr>
+          <tr><td class="left">Returned no candles at all</td><td class="${g.no_candles ? 'neg' : ''}">${g.no_candles}</td></tr>
+          <tr><td class="left">Errored during fetch</td><td class="${g.errored ? 'neg' : ''}">${g.errored}</td></tr>
+          <tr><td class="left">Median candles per stock</td><td class="${g.median_candles < 1100 ? 'neg' : ''}">${g.median_candles}</td></tr>
+        </tbody></table>
+        ${g.errored || g.median_candles < 1100
+          ? `<span style="color:var(--down);">History is not coming back properly — this is a data problem, not an empty market. ${g.sample_errors && g.sample_errors.length ? 'First error: ' + g.sample_errors[0] : 'Kite rate limiting is the usual cause on large universes.'}</span>`
+          : 'History looks healthy, so this reflects the market rather than a fault — try a different turnover floor.'}
+      </td></tr>`;
+      return;
+    }
+    if(!allHits.length && lastScan && !lastScan.scanned){
+      tbody.innerHTML = `<tr><td colspan="12" class="loading" style="line-height:1.8;">
+        <b style="color:var(--text);">The scan found no stocks at all.</b><br><br>
+        Not a filter problem — the universe itself came back empty. Every stock is screened on turnover,
+        and turnover reads zero when the market has not traded: before 9:15, or on a holiday.
+        ${lastScan.ran_at ? `This ran at <b>${lastScan.ran_at}</b>` : ''}${lastScan.market_open === false ? ' with the market closed' : ''}.<br><br>
+        The scan now falls back to the last published bhavcopy when live volume is unavailable, so
+        re-running should work. If it still returns nothing, check the Command Prompt for a line
+        beginning <code>[universe]</code> — it reports how many stocks passed and which source was used.
+      </td></tr>`;
+      return;
+    }
+    tbody.innerHTML = '<tr><td colspan="12" class="loading">No stocks match this filter.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(h=>{
+    const [cls,label] = TAGS[h.kind] || ['t-at','—'];
+    const pierce = h.kind==='resistance_reject' || h.kind==='breakout' ? h.overshoot_pct : h.pierce_depth_pct;
+    const wick = h.bias==='bearish' ? h.upper_wick_pct : h.lower_wick_pct;
+    const vcls = h.vol_ratio >= 1.5 ? 'volhi' : (h.vol_ratio < 0.6 ? 'neu' : '');
+    return `<tr>
+      <td class="left">${h.fno ? '<span class="fnotag" title="Has stock futures and options — covered by the closing auction, and tradeable in the derivatives segment">F</span>' : '<span class="fnopad"></span>'}<a class="sym" href="/liquidity/${h.symbol}">${h.symbol}</a></td>
+      <td class="left"><span class="tag ${cls}">${label}</span></td>
+      <td>${h.close}</td>
+      <td>${h.ema}</td>
+      <td class="${pc(h.dist_pct)}">${h.dist_pct>=0?'+':''}${h.dist_pct}%</td>
+      <td>${pierce > 0 ? pierce.toFixed(2)+'%' : '—'}</td>
+      <td>${wick > 0 ? wick.toFixed(0)+'%' : '—'}</td>
+      <td class="${vcls}">${h.vol_ratio ? h.vol_ratio+'×' : '—'}</td>
+      <td class="${pc(h.week_change_pct)}">${h.week_change_pct>=0?'+':''}${h.week_change_pct}%</td>
+      <td class="neu" title="Average Rs${h.turnover_cr}Cr${h.turnover_today_cr ? ' · latest session Rs' + h.turnover_today_cr + 'Cr' : ''}${h.turnover_x ? ' (' + h.turnover_x + 'x)' : ''}">
+        ₹${h.turnover_cr}Cr${h.admitted_via === 'expansion' ? `<span class="expx" title="Average turnover is below the floor, but this stock is trading ${h.turnover_x}x its own norm — admitted on volume expansion">${h.turnover_x}×</span>` : ''}</td>
+      <td class="${h.seed_influence_pct > 10 ? 'warnhist' : 'neu'}" title="${h.weeks_of_history} weekly bars · ${h.seed_influence_pct}% of the EMA is still seed value">${(h.weeks_of_history/52).toFixed(1)}y${h.seed_influence_pct > 10 ? ' ⚠' : ''}</td>
+      <td><div class="sc">${h.score}</div><div class="scbar"><div style="width:${h.score}%"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderProgress(d){
+  document.getElementById('tbody').innerHTML = `<tr><td colspan="12" style="padding:26px 18px;">
+    <div style="font-family:'Space Grotesk';font-weight:700;font-size:16px;margin-bottom:8px;">Scanning — ${d.pct}%</div>
+    <div style="height:8px;background:var(--border);border-radius:5px;overflow:hidden;margin-bottom:10px;max-width:440px;">
+      <div style="height:100%;width:${d.pct}%;background:linear-gradient(90deg,#9B7BFF,#7B5BDF);transition:width .4s;"></div>
+    </div>
+    <div style="color:var(--muted);font-size:12.5px;line-height:1.6;">
+      ${d.stage || ''}${d.total ? ` · ${d.done} of ${d.total} stocks` : ''}<br>
+      Elapsed ${Math.floor(d.elapsed_sec/60)}m ${d.elapsed_sec%60}s${d.eta_sec!=null ? ` · about ${Math.ceil(d.eta_sec/60)} min left` : ''}<br>
+      <span style="font-size:11.5px;">Runs once a day then caches. You can leave this page — it continues in the background.</span>
+    </div></td></tr>`;
+}
+
+let pollingMinCr = null;   // pinned while a scan runs, so changing the dropdown
+                           // mid-run cannot redirect polling to a different floor
+
+async function load(force){
+  if(pollTimer){ clearTimeout(pollTimer); pollTimer = null; }
+  if(force) pollingMinCr = null;
+  const minCr = (pollingMinCr !== null) ? pollingMinCr : document.getElementById('minCr').value;
+  try{
+    const res = await fetch(`/api/wema?min_cr=${minCr}${force?'&force=1':''}`);
+    if(res.status===401){ window.location.href='/login'; return; }
+    const d = await res.json();
+    if(d.building){
+      pollingMinCr = (d.running_min_cr != null) ? d.running_min_cr : minCr;
+      renderProgress(d);
+      pollTimer = setTimeout(()=>load(false), 2500);
+      return;
+    }
+    pollingMinCr = null;
+    if(d.error){ document.getElementById('tbody').innerHTML = `<tr><td colspan="12" class="error">${d.error}</td></tr>`; return; }
+
+    allHits = d.hits || [];
+    lastScan = d;
+
+    const mism = document.getElementById('mismatch');
+    if(d.stale_day){
+      mism.innerHTML = `<div class="mismatch">These results are from <b>${d.date}</b>, not today.
+        Nothing has been re-run automatically — the scan takes several minutes, so it happens when you ask.
+        <button class="btn" style="margin-left:10px;" onclick="load(true)">Run today's scan</button></div>`;
+    }else if(d.params_differ){
+      mism.innerHTML = `<div class="mismatch">These results were scanned at a
+        <b>₹${d.min_turnover_cr} Cr</b> floor, but the selector now reads
+        <b>₹${d.requested_min_cr} Cr</b>. Nothing has been re-run — a scan takes minutes,
+        so it only happens when you ask.
+        <button class="btn" style="margin-left:10px;" onclick="load(true)">Rescan at ₹${d.requested_min_cr} Cr</button></div>`;
+    }else{
+      mism.innerHTML = '';
+    }
+    document.getElementById('asof').textContent =
+      `${d.exchange} · ${d.scanned} SCANNED${d.fno_in_universe ? ` (${d.fno_in_universe} F&O)` : ''} · ${allHits.length} AT LEVEL${d.turnover_basis ? ` · ${d.turnover_basis}` : ''}${d.admitted_on_expansion ? ` · ${d.admitted_on_expansion} via expansion` : ''} · ${d.generated_at}`;
+    renderMidweek(d);
+    renderChips();
+    renderTable();
+  }catch(e){
+    document.getElementById('tbody').innerHTML = `<tr><td colspan="12" class="error">Failed: ${e.message}</td></tr>`;
+  }
+}
+
+document.getElementById('minCr').addEventListener('change', ()=>load(false));
+load(false);
+</script>
+
+{{ OWNER_FOOTER|safe }}
+
+</body>
+</html>

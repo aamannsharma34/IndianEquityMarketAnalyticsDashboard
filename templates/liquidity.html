@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ symbol }} — Liquidity Map</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B;
+    --amber:#E8B84B; --violet:#9B7BFF; --cyan:#4BC8E8;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:26px 18px 70px;}
+  .wrap{max-width:980px;margin:0 auto;}
+  .back{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:12px;}
+  .back:hover{color:var(--text);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 20px;}
+
+  .counts{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+  .cell{background:var(--panel);padding:13px 14px;}
+  .cell .label{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-family:'JetBrains Mono',monospace;}
+  .cell .big{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+
+  .ladder{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:6px 0;margin-bottom:24px;}
+  .zone{display:grid;grid-template-columns:150px 132px 1fr 74px 60px;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #1A1F23;}
+  .zone.confluent{background:#171C21;border-left:2px solid var(--amber);}
+  .zone.straddles{opacity:.55;}
+  .ztags{display:flex;flex-wrap:wrap;gap:3px;}
+  .zdist{display:block;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;margin-top:2px;}
+  .zdist.up{color:var(--up);} .zdist.down{color:var(--down);}
+  .zfactors{display:flex;flex-wrap:wrap;gap:4px;}
+  .fchip{font-size:10.5px;color:var(--muted);background:#1B2024;border:1px solid var(--border);border-radius:4px;padding:2px 7px;}
+  .zprob{text-align:center;}
+  .pval{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;}
+  .pval.p-high{color:var(--up);} .pval.p-mid{color:var(--amber);} .pval.p-low{color:var(--muted);}
+  .plabel{font-size:8.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-family:'JetBrains Mono',monospace;margin-top:1px;}
+  .zstr{text-align:center;}
+  .sval{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--text);}
+  .sbar{height:3px;border-radius:2px;background:var(--border);margin-top:3px;overflow:hidden;}
+  .sbar div{height:100%;background:var(--violet);}
+  .tag.hvn{background:#F0554B22;color:var(--down);}
+  .headline{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:18px;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .hl{border-left:3px solid var(--border);padding-left:13px;}
+  .hl.up{border-left-color:var(--up);} .hl.down{border-left-color:var(--down);}
+  .hl .hlabel{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .hl .hval{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+  .hl .hnote{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.5;}
+  @media(max-width:760px){
+    .zone{grid-template-columns:1fr 74px 60px;}
+    .zfactors{display:none;}
+    .headline{grid-template-columns:1fr;}
+  }
+  .zone:last-child{border-bottom:none;}
+  .zone.price-row{background:#1B2024;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 16px;}
+  .tag{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:4px;text-align:center;}
+  .tag.fvg-bull{background:#33D17A22;color:var(--up);}
+  .tag.fvg-bear{background:#F0554B22;color:var(--down);}
+  .tag.buyside{background:#9B7BFF22;color:var(--violet);}
+  .tag.sellside{background:#4BC8E822;color:var(--cyan);}
+  .tag.lvn{background:#E8B84B22;color:var(--amber);}
+  .tag.va{background:#E7EAEC1A;color:var(--text);}
+  .lvl{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:600;}
+  .desc{font-size:12px;color:var(--muted);}
+  .desc b{color:var(--text);font-weight:600;}
+  .dist{font-family:'JetBrains Mono',monospace;font-size:12.5px;text-align:right;font-weight:700;}
+  .dist.up{color:var(--up);} .dist.down{color:var(--down);}
+  .price-row .lvl{font-size:15px;color:var(--amber);}
+  .price-row .desc{color:var(--text);font-weight:600;}
+
+  .section-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:10px 16px 4px;}
+  .loading,.error{color:var(--muted);font-size:13px;padding:20px 16px;}
+  .error{color:var(--down);}
+  .legend{color:var(--muted);font-size:11.5px;line-height:1.75;margin-top:6px;}
+  .legend b{color:var(--text);font-weight:600;}
+  .caveat{background:#14181C;border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;padding:13px 15px;margin-top:20px;color:var(--muted);font-size:12px;line-height:1.7;}
+  .caveat b{color:var(--text);}
+  .vzintro{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--violet);
+    border-radius:10px;padding:15px 18px;margin-bottom:20px;font-size:12.5px;color:var(--muted);line-height:1.75;}
+  .vzintro b{color:var(--text);}
+  .vzstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:18px;}
+  .vzs{background:var(--panel);padding:13px 15px;}
+  .vzs .l{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .vzs .v{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;}
+  .vzs .s{font-size:10.5px;color:var(--muted);margin-top:3px;}
+  .vzup{color:var(--up);} .vzdn{color:var(--down);}
+  .vzlist{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .vzrow{display:grid;grid-template-columns:104px 210px 1fr 66px;gap:13px;align-items:center;
+    padding:11px 16px;border-bottom:1px solid #1A1F23;}
+  .vzrow:last-child{border-bottom:none;}
+  .vztag{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;
+    padding:3px 8px;border-radius:4px;letter-spacing:.03em;}
+  .r-sup{background:#33D17A22;color:var(--up);}
+  .r-res{background:#F0554B22;color:var(--down);}
+  .vzflip{display:inline-block;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:8.5px;
+    font-weight:700;color:var(--amber);letter-spacing:.06em;cursor:help;}
+  .vzlvl{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
+  .vzdist{display:block;font-size:10px;font-weight:500;margin-top:2px;color:var(--muted);}
+  .vzmeta{display:flex;flex-wrap:wrap;gap:5px;}
+  .vzchip{font-size:10.5px;color:var(--muted);background:#1B2024;border:1px solid var(--border);
+    border-radius:4px;padding:2px 8px;}
+  .vzchip.vol{color:var(--violet);border-color:#9B7BFF44;}
+  .vzchip.wick{color:var(--amber);border-color:#E8B84B44;}
+  .vzchip.dim{color:#5C666E;}
+  .vzchip.flow{color:var(--cyan);border-color:#4BC8E844;}
+  .vzchip.divg{color:var(--up);border-color:#33D17A44;cursor:help;}
+  .vzchip.conf{color:var(--amber);border-color:#E8B84B44;}
+  .vzchip.vdisc{color:var(--up);border-color:#33D17A44;cursor:help;}
+  .vzchip.vprem{color:var(--down);border-color:#F0554B44;cursor:help;}
+  .vzedge{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--cyan);margin-top:3px;cursor:help;}
+  .vzflowctx{background:var(--panel);border:1px solid var(--border);border-radius:11px;
+    padding:14px 17px;margin-top:16px;font-size:12px;color:var(--muted);line-height:1.7;}
+  .vzflowctx b{color:var(--text);}
+  .vzflowctx .fcrow{display:flex;flex-wrap:wrap;gap:18px;margin-top:8px;}
+  .mcxbanner{background:var(--panel);border:1px solid var(--border);border-left:2px solid var(--amber);
+    border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:14px;font-size:12px;
+    color:var(--muted);line-height:1.75;}
+  .mcxbanner b{color:var(--text);}
+  .vzflowctx .fci .l{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);}
+  .vzflowctx .fci .v{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--text);}
+  .vzstretch{margin-top:10px;padding:9px 12px;border-left:2px solid var(--amber);
+    background:#1B2024;border-radius:0 6px 6px 0;font-size:11.5px;color:var(--amber);}
+  .vzstr{text-align:center;}
+  .vzsv{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;}
+  .vzsb{height:3px;border-radius:2px;background:var(--border);margin-top:3px;overflow:hidden;}
+  .vzsb div{height:100%;background:var(--violet);}
+  .vzprice{background:#1B2024;border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+    padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .vzprice span{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;
+    color:var(--amber);margin-right:9px;letter-spacing:0;text-transform:none;}
+  .vzrow.inzone{background:#17150F;box-shadow:inset 2px 0 0 var(--amber);}
+  .vzin{display:inline-block;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:8.5px;
+    font-weight:700;color:var(--amber);letter-spacing:.06em;cursor:help;}
+  .vzmid{color:var(--amber);}
+  .tabs{display:flex;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:4px;width:fit-content;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
+  .tf-wrap{display:flex;align-items:center;gap:8px;}
+  .tf-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);}
+  #tfSelect{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;cursor:pointer;}
+  #tfSelect:hover{border-color:var(--muted);}
+  .tf-note{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);margin-left:8px;}
+  .tab{font-family:'JetBrains Mono',monospace;font-size:12px;background:transparent;border:none;color:var(--muted);padding:8px 16px;border-radius:6px;cursor:pointer;}
+  .tab:hover{color:var(--text);}
+  .tab.active{background:var(--text);color:var(--bg);font-weight:700;}
+
+  .exec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:22px;}
+  .exec-cell{background:var(--panel);padding:16px 18px;}
+  .exec-cell .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-family:'JetBrains Mono',monospace;}
+  .exec-cell .val{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;line-height:1.1;}
+  .exec-cell .note{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.45;}
+  .exec-cell.tier .val{font-size:19px;}
+  .tier-veryhigh .val,.tier-high .val{color:var(--up);}
+  .tier-moderate .val{color:var(--amber);}
+  .tier-thin .val,.tier-illiquid .val{color:var(--down);}
+
+  .book{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+  .book h3{font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 4px;font-weight:600;}
+  .book .bnote{color:var(--muted);font-size:11.5px;margin:0 0 14px;}
+  .bookbar{height:26px;border-radius:6px;overflow:hidden;display:flex;margin-bottom:10px;}
+  .bookbar .bid{background:#33D17A;display:flex;align-items:center;padding-left:10px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:#06210F;}
+  .bookbar .ask{background:#F0554B;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:#2A0906;}
+  .bookrow{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);padding:4px 0;}
+  .bookrow b{color:var(--text);}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="javascript:history.back()">← Back</a>
+  <div class="eyebrow"><span>LIQUIDITY MAP</span><span id="asof">—</span></div>
+  <h1>{{ symbol }}</h1>
+  <p class="sub">Structural zones left behind by past price action, nearest first.</p>
+
+  <div class="topbar">
+    <div class="tabs">
+      <button class="tab active" data-tab="structure">Structural zones</button>
+      <button class="tab" data-tab="execution">Execution liquidity</button>
+      <button class="tab" data-tab="volzones">Vol. Liquidity</button>
+    </div>
+    <div class="tf-wrap">
+      <label class="tf-label">Timeframe</label>
+      <select id="tfSelect">
+        <option value="day" selected>Daily</option>
+        <option value="4h">4 hour</option>
+        <option value="125m">125 minute</option>
+        <option value="75m">75 minute</option>
+        <option value="60m">60 minute</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="tab-structure">
+    <div class="headline" id="headline"></div>
+    <div class="counts" id="counts"></div>
+    <div class="ladder" id="ladder">
+      <div class="loading">Analysing price structure…</div>
+    </div>
+
+    <p class="legend">
+      <b>HIGH VOL</b> — a high-volume node: heavy positions changed hands in this range, so participants defend it. Acts as a wall. &nbsp;
+      <b>THIN</b> — a low-volume node: prices the market rejected. Acts as a vacuum, price travels through fast. &nbsp;
+      <b>FVG</b> — an unfilled imbalance from a fast move. &nbsp;
+      <b>BUY-SIDE / SELL-SIDE</b> — untested swing levels where stops cluster; multiple equal levels mean stacked stops. &nbsp;
+      An amber left border marks <b>confluence</b> — two or more independent zone types landing on the same price.
+    </p>
+
+    <p class="legend">
+      <b>Reach rate</b> is measured, not predicted: across every past window of this length on this stock, the share that saw price travel at least this far in this direction. It reflects distance and volatility — nothing about the zone itself. &nbsp;
+      <b>Strength</b> counts what's waiting at that price: gap size, stacked stops, volume, touch count, recency, confluence. The chips list exactly what earned it.
+    </p>
+
+    <div class="caveat">
+      <b>Read these two numbers separately.</b> A near zone will always show a high reach rate simply because small moves are common — that is not evidence the zone matters. A distant zone with 90 strength and a 15% reach rate is genuinely significant but unlikely to be touched soon. The useful cases are where both are high. And a reach rate is not a probability that the zone will <i>hold</i> or reverse price — only that price is likely to get there. Nothing here accounts for news, earnings, or market regime, and the base rate is drawn from a period that may look nothing like the one ahead.
+    </div>
+  </div>
+
+  <div id="tab-volzones" style="display:none;">
+    <div class="vzintro">
+      <b>Volume-weighted support and resistance.</b> Levels are built from <b>confirmed swing pivots</b> — a pivot is only used once enough later bars exist to prove it was a turning point, so nothing appears in hindsight and levels never move retrospectively.<br><br>
+      Strength comes from the <b>volume behind a level</b>, not from how often a line was touched. Every re-test adds its volume to the zone, and nearby pivots merge into it rather than creating competing levels, so a zone defended repeatedly reads stronger without any touch-count rule doing the work. The centre is a volume-weighted average, so it drifts toward where volume actually sits.<br><br>
+      Widths are set by <b>ATR</b>, so a zone on a volatile instrument is proportionally wider than one on a quiet one. Price rarely turns at an exact number, and a fixed band would be too tight on one stock and meaningless on another.<br><br>
+      <b>A zone can contain the current price.</b> When it does it is marked <b>PRICE INSIDE</b> and sits at the price line rather than above or below it. The role label still reads as it was — a zone born from a swing high stays resistance until price <i>closes</i> decisively beyond it, and trading within the band is not a break. The level it must close through to flip is shown on the row.<br><br>
+      <b>Wicks strengthen, closes invalidate.</b> A wick through a zone that closes back inside is evidence the level held under pressure and adds to its strength. Only a decisive close beyond counts as a break — and a break flips the role rather than deleting the level. Support closed decisively below becomes resistance. A second break after flipping retires the zone, since the market has stopped respecting it. <b>FLIPPED* means inverted once and not broken since — nothing more.</b> Touches are not tracked separately before vs after the flip, so the tag cannot tell you the level has been defended in its new role; the defended count on a flipped zone mixes both eras.
+    </div>
+    <div id="vzout"><div class="loading">Building zones…</div></div>
+  </div>
+
+  <div id="tab-execution" style="display:none;">
+    <div class="exec-grid" id="execGrid">
+      <div class="loading">Computing execution metrics…</div>
+    </div>
+    <div id="bookPanel"></div>
+
+    <p class="legend" style="margin-top:18px;">
+      <b>ADV</b> — average daily traded value. The basic capacity number. &nbsp;
+      <b>Tradeable size</b> — 10% of ADV, a common single-day ceiling before impact turns material. &nbsp;
+      <b>Amihud</b> — basis points of price movement per ₹1 crore traded. Lower is more liquid; this is the standard academic price-impact measure. &nbsp;
+      <b>Implied spread</b> — bid-ask spread estimated from daily high-low ranges (Corwin-Schultz), a proxy for round-trip cost. &nbsp;
+      <b>Order book</b> — actual resting bids and offers, the only genuinely real liquidity here. It's a live 5-level snapshot, so it shifts second to second.
+    </p>
+  </div>
+</div>
+
+<script>
+const symbol = "{{ symbol }}";
+
+function tagFor(z){
+  const t = (z.types && z.types.length) ? z.types : [z.type];
+  return t.map(ty=>{
+    if(ty === 'FVG') return z.side === 'bullish'
+      ? '<span class="tag fvg-bull">FVG &#8593;</span>' : '<span class="tag fvg-bear">FVG &#8595;</span>';
+    if(ty === 'SWING') return z.side === 'buy-side'
+      ? '<span class="tag buyside">BUY-SIDE</span>' : '<span class="tag sellside">SELL-SIDE</span>';
+    if(ty === 'HVN') return '<span class="tag hvn">HIGH VOL</span>';
+    if(ty === 'LVN') return '<span class="tag lvn">THIN</span>';
+    return '<span class="tag va">VA</span>';
+  }).join(' ');
+}
+
+function levelText(z){
+  if(Math.abs(z.high - z.low) < 0.01) return z.mid.toLocaleString('en-IN');
+  return `${z.low.toLocaleString('en-IN')} &#8211; ${z.high.toLocaleString('en-IN')}`;
+}
+
+function probClass(p){
+  if(p === null || p === undefined) return '';
+  if(p >= 70) return 'p-high';
+  if(p >= 40) return 'p-mid';
+  return 'p-low';
+}
+
+function renderZone(z){
+  const cls = z.dist_pct >= 0 ? 'up' : 'down';
+  const sign = z.dist_pct >= 0 ? '+' : '';
+  const br = z.base_rate;
+  return `<div class="zone ${z.confluence > 1 ? 'confluent' : ''} ${z.straddles ? 'straddles' : ''}">
+    <div class="ztags">${tagFor(z)}</div>
+    <div class="lvl">${levelText(z)}<span class="zdist ${cls}">${sign}${z.dist_pct}%${z.width_pct > 0.05 ? ` &middot; ${z.width_pct}% wide` : ''}</span></div>
+    <div class="zfactors">${(z.factors||[]).map(f=>`<span class="fchip">${f}</span>`).join('')}</div>
+    <div class="zprob"><div class="pval ${probClass(br)}">${br !== null && br !== undefined ? br + '%' : '&#8212;'}</div><div class="plabel">reach rate</div></div>
+    <div class="zstr"><div class="sval">${z.strength}</div><div class="sbar"><div style="width:${z.strength}%"></div></div></div>
+  </div>`;
+}
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+    document.getElementById('tab-structure').style.display = t.dataset.tab==='structure' ? '' : 'none';
+    document.getElementById('tab-execution').style.display = t.dataset.tab==='execution' ? '' : 'none';
+    document.getElementById('tab-volzones').style.display = t.dataset.tab==='volzones' ? '' : 'none';
+    if(t.dataset.tab === 'volzones') loadVolZones();
+  });
+});
+
+let vzLoadedTf = null;
+
+async function loadVolZones(force){
+  if(!force && vzLoadedTf === currentTf) return;   // already built for this timeframe
+  const el = document.getElementById('vzout');
+  el.innerHTML = '<div class="loading">Building zones from confirmed pivots…</div>';
+  try{
+    const res = await fetch(`/api/volume-zones/${symbol}?tf=${currentTf}`);
+    if(res.status === 401){ window.location.href='/login'; return; }
+    const d = await res.json();
+    if(d.error){ el.innerHTML = `<div class="error">${d.error}</div>`; vzLoadedTf = null; return; }
+    vzLoadedTf = currentTf;
+
+    const s = d.summary || {};
+    const head = `<div class="vzstats">
+      <div class="vzs"><div class="l">Live zones</div><div class="v">${d.zones.length}</div><div class="s">${s.strong_count || 0} strong</div></div>
+      <div class="vzs"><div class="l">Nearest above</div><div class="v vzup">${s.nearest_above ? s.nearest_above.center.toLocaleString('en-IN') : '—'}</div>
+        <div class="s">${s.nearest_above ? `${s.nearest_above.dist_pct >= 0 ? '+' : ''}${s.nearest_above.dist_pct}% · str ${s.nearest_above.strength}` : ''}</div></div>
+      <div class="vzs"><div class="l">Nearest below</div><div class="v vzdn">${s.nearest_below ? s.nearest_below.center.toLocaleString('en-IN') : '—'}</div>
+        <div class="s">${s.nearest_below ? `${s.nearest_below.dist_pct}% · str ${s.nearest_below.strength}` : ''}</div></div>
+      <div class="vzs"><div class="l">Role flips</div><div class="v">${s.flipped_count || 0}</div><div class="s">broken then held</div></div>
+      <div class="vzs"><div class="l">Basis</div><div class="v" style="font-size:15px;">${d.timeframe_label}</div><div class="s">${d.bars} bars · ${d.pivot_confirm}-bar pivots</div></div>
+    </div>`;
+
+    if(!d.zones.length){
+      el.innerHTML = head + '<div class="loading">No live zones — every level built so far has been decisively broken twice and retired.</div>';
+      return;
+    }
+
+    const byPrice = d.zones.slice().sort((a,b)=>b.center-a.center);
+
+    const priceRow = `<div class="vzprice"><span>${d.last_close.toLocaleString('en-IN')}</span> current price</div>`;
+
+    const insideRows = byPrice.filter(z=>z.position === 'inside');
+    el.innerHTML = head + `<div class="vzlist">` +
+      byPrice.filter(z=>z.position === 'above').map(z=>vzRow(z)).join('') +
+      priceRow +
+      insideRows.map(z=>vzRow(z)).join('') +
+      mcxBanner(d.market) +
+      byPrice.filter(z=>z.position === 'below').map(z=>vzRow(z)).join('') +
+      `</div>` + flowContextPanel(d.flow_context);
+  }catch(e){
+    el.innerHTML = `<div class="error">Failed: ${e.message}</div>`;
+    vzLoadedTf = null;
+  }
+}
+
+const VWAP_BANDS = {
+  '-2sd': {cls:'vdisc', label:'deep discount &middot; \u22122\u03C3 &middot; fear extreme',
+    tip:"The lower 2-standard-deviation band of the anchored VWAP sits inside this zone. Price here is about as cheap versus the period's average traded price as it normally gets \u2014 roughly 95% of trading happens inside \u00B12\u03C3 \u2014 historically where fear peaks and selling exhausts. NOT a buy signal by itself: in a genuine downtrend price rides this band while the average follows it down."},
+  '-1sd': {cls:'vdisc', label:'discount &middot; \u22121\u03C3',
+    tip:"The lower 1\u03C3 band sits inside this zone \u2014 an ordinary discount to the period's average traded price. The routine edge of the normal range, not an extreme."},
+  'vwap': {cls:'conf', label:'fair value &middot; aVWAP',
+    tip:"The anchored VWAP itself \u2014 the period's volume-weighted average price \u2014 sits inside this zone. The average participant since the anchor is roughly flat here."},
+  '+1sd': {cls:'vprem', label:'premium &middot; +1\u03C3',
+    tip:"The upper 1\u03C3 band sits inside this zone \u2014 an ordinary premium to the period's average traded price. The routine edge of the normal range, not an extreme."},
+  '+2sd': {cls:'vprem', label:'extended &middot; +2\u03C3 &middot; greed extreme',
+    tip:"The upper 2-standard-deviation band of the anchored VWAP sits inside this zone. Price here is about as rich versus the period's average traded price as it normally gets \u2014 historically where greed peaks and chasing is most expensive. NOT a sell signal by itself: in a strong uptrend price rides this band while the average follows it up."}
+};
+
+function vzVwapChip(band){
+  if(!band) return '';
+  const b = VWAP_BANDS[band];
+  if(!b) return `<span class="vzchip conf">aVWAP ${band}</span>`;
+  return `<span class="vzchip ${b.cls}" title="${b.tip} Bands move daily as new volume trades \u2014 this chip can appear or vanish while the zone stays fixed. Whether band-plus-zone confluence outperforms zone-alone is untested, like every weight here.">${b.label}</span>`;
+}
+
+function vzRow(z){
+  const isAbove = z.position === 'above';
+  const inZone = z.position === 'inside';
+  const roleCls = z.role === 'support' ? 'r-sup' : 'r-res';
+  return `<div class="vzrow ${inZone ? 'inzone' : ''}">
+    <div class="vzrole"><span class="vztag ${roleCls}">${z.role.toUpperCase()}</span>
+      ${inZone ? `<span class="vzin" title="Price is currently trading inside this zone, ${z.pct_into_zone}% of the way up it. The role stays as it was until a close beyond ${z.flip_level} settles it.">PRICE INSIDE</span>` : ''}
+      ${z.flips ? `<span class="vzflip" title="Broke decisively once, so its role inverted (support&#8596;resistance). It has not been broken a second time — a second break would retire it. But touches are NOT tracked separately before vs after the flip, so this tag does not tell you the level has been defended in its new role. The 'defended N&times;' count mixes both eras.">FLIPPED*</span>` : ''}</div>
+    <div class="vzlvl">${z.low.toLocaleString('en-IN')} – ${z.high.toLocaleString('en-IN')}
+      <span class="vzdist ${inZone ? 'vzmid' : (isAbove ? 'vzup' : 'vzdn')}">${
+        inZone ? `price ${z.pct_into_zone}% into zone · flips above ${z.flip_level.toLocaleString('en-IN')}`
+               : `${z.dist_pct >= 0 ? '+' : ''}${z.dist_pct}%`
+      } · ${z.width_pct}% wide (${z.atr_width} ATR)</span></div>
+    <div class="vzmeta">
+      <span class="vzchip vol">${z.vol_x_avg}× avg volume</span>
+      <span class="vzchip">${z.pivots} pivot${z.pivots > 1 ? 's' : ''} merged</span>
+      ${z.touches ? `<span class="vzchip">defended ${z.touches}×</span>` : ''}
+      ${z.wick_rejections ? `<span class="vzchip wick">${z.wick_rejections} wick rejection${z.wick_rejections > 1 ? 's' : ''}</span>` : ''}
+      <span class="vzchip dim">${z.bars_since_test === 0 ? 'tested this bar' : `${z.bars_since_test} bars since test`}</span>
+      ${z.sweep_reclaims ? `<span class="vzchip flow" title="A close beyond the edge that was reclaimed by a close back inside within 3 bars — the multi-bar cousin of a wick rejection. Counted over the last 60 bars against the zone's final geometry.">swept &amp; reclaimed ${z.sweep_reclaims}&times;${z.last_reclaim_bars_ago !== null && z.last_reclaim_bars_ago !== undefined ? ` · last ${z.last_reclaim_bars_ago === 0 ? 'this bar' : z.last_reclaim_bars_ago + ' bars ago'}` : ''}</span>` : ''}
+      ${z.absorption_divergence === true ? `<span class="vzchip divg" title="Price pushed deeper into this zone on its latest test while cumulative intrabar pressure refused to confirm. This is a CANDLE PROXY for CVD divergence — passive absorption and aggressive flow are indistinguishable without tick data.">absorption divergence (proxy)</span>` : ''}
+      ${vzVwapChip(z.vwap_confluence)}
+      ${z.hvn_confluence ? `<span class="vzchip conf" title="Zone overlaps a high-volume node from the candle-built volume profile">on HVN</span>` : ''}
+      ${z.poc_in_zone ? `<span class="vzchip conf" title="The profile's point of control sits inside this zone">POC inside</span>` : ''}
+    </div>
+    <div class="vzstr"><div class="vzsv">${z.strength}</div><div class="vzsb"><div style="width:${Math.max(3,z.strength)}%"></div></div>${
+      z.edge !== undefined && z.edge !== null && z.edge !== z.strength
+        ? `<div class="vzedge" title="Strength plus a flow-confirmation bonus (sweep-reclaims, divergence proxy, VWAP/HVN/POC confluence), capped at +18. The weights are hand-assigned judgement, not backtested.">edge ${z.edge}</div>` : ''
+    }</div>
+  </div>`;
+}
+
+function mcxBanner(m){
+  if(!m || m.exchange !== 'MCX') return '';
+  const soon = (m.days_to_expiry !== null && m.days_to_expiry !== undefined && m.days_to_expiry <= 7);
+  return `<div class="mcxbanner"><b>${m.label} &mdash; ${m.tradingsymbol || ''}, MCX front month.</b>
+    Expiry ${m.expiry || '—'}${m.days_to_expiry !== null && m.days_to_expiry !== undefined ? ` (${m.days_to_expiry} days)` : ''}${
+      soon ? ' &mdash; <span style="color:var(--amber)">rolling soon</span>' : ''}.
+    Zones come from <b>this contract's own history only</b>, never spliced across expiries: no rollover
+    artifacts, but shallower depth than an equity chart and <b>the whole zone set resets at each roll</b>.
+    Volume is real exchange contracts, so the volume-weighted scoring means what it does for stocks.</div>`;
+}
+
+function flowContextPanel(fc){
+  if(!fc) return '';
+  const v = fc.vwap, p = fc.profile;
+  const slope = fc.cvd_proxy_slope_20;
+  const items = [];
+  if(v){
+    items.push(`<div class="fci"><div class="l">Anchored VWAP</div><div class="v">${v.vwap.toLocaleString('en-IN')}</div>
+      <div class="l" style="margin-top:2px;">from ${v.anchor_date} · ${v.anchored_bars} bars</div></div>`);
+    if(v.price_z !== null && v.price_z !== undefined)
+      items.push(`<div class="fci"><div class="l">Price vs aVWAP</div><div class="v">${v.price_z >= 0 ? '+' : ''}${v.price_z}&sigma;</div>
+        <div class="l" style="margin-top:2px;">bands at ${v.bands['-2sd'].toLocaleString('en-IN')} / ${v.bands['+2sd'].toLocaleString('en-IN')}</div></div>`);
+  }
+  if(p){
+    items.push(`<div class="fci"><div class="l">Profile POC</div><div class="v">${p.poc.toLocaleString('en-IN')}</div>
+      <div class="l" style="margin-top:2px;">${p.hvns.length} high-volume node${p.hvns.length !== 1 ? 's' : ''} · ${p.profile_lookback} bars</div></div>`);
+  }
+  if(slope !== null && slope !== undefined)
+    items.push(`<div class="fci"><div class="l">CVD proxy, 20 bars</div><div class="v">${slope > 0 ? 'rising' : slope < 0 ? 'falling' : 'flat'}</div>
+      <div class="l" style="margin-top:2px;">intrabar pressure, not tick delta</div></div>`);
+  if(!items.length && !fc.vwap_note) return '';
+  return `<div class="vzflowctx">
+    <b>Flow confirmation context.</b> The chips on each row come from here: sweep-and-reclaim events, a divergence built from a <b>candle proxy</b> for cumulative delta (it cannot separate passive absorption from aggressive flow — that needs tick data), confluence with an anchored VWAP and its &plusmn;2&sigma; bands, and overlap with the volume profile's nodes. The flow weights behind the <b>edge</b> number are hand-assigned judgement, not backtested — same status as every confidence figure in this app. <b>Strength is unchanged</b>; edge is strength plus a capped flow bonus.
+    <div class="fcrow">${items.join('')}</div>
+    ${fc.vwap_note ? `<div class="vzstretch">${fc.vwap_note}</div>` : ''}
+  </div>`;
+}
+
+function renderExecution(d){
+  const e = d.execution, va = d.value_area;
+  const grid = document.getElementById('execGrid');
+  if(!e){
+    grid.innerHTML = '<div class="loading">Not enough history for execution metrics.</div>';
+    return;
+  }
+  const tierCls = 'tier-' + e.tier.toLowerCase().replace(/\s/g,'');
+  const cells = [
+    {cls:`tier ${tierCls}`, label:'Liquidity tier', val:e.tier, note:e.tier_note},
+    {label:'Avg daily value', val:`₹${e.adv_cr.toLocaleString('en-IN')} Cr`, note:`mean over last ${e.lookback} sessions`},
+    {label:'Tradeable size', val:`₹${e.capacity_10pct_cr.toLocaleString('en-IN')} Cr`, note:'at 10% of ADV — above this, impact grows'},
+    {label:'Amihud impact', val:e.amihud !== null ? `${e.amihud} bps` : '—', note:'price move per ₹1 Cr traded — lower is better'},
+    {label:'Implied spread', val:e.spread_pct !== null ? `${e.spread_pct}%` : '—', note:'Corwin-Schultz estimate of round-trip cost'},
+    {label:'Annualised vol', val:`${e.vol_annual_pct}%`, note:'context for how far impact can travel'},
+  ];
+  if(va){
+    cells.push({label:'Point of Control', val:va.poc.toLocaleString('en-IN'),
+                note:`most-traded price · ${va.poc_dist_pct >= 0 ? '+' : ''}${va.poc_dist_pct}% away`});
+    cells.push({label:'Value area', val:`${va.val.toLocaleString('en-IN')} – ${va.vah.toLocaleString('en-IN')}`,
+                note:`70% of volume · price is <b>${va.position}</b>`});
+  }
+  grid.innerHTML = cells.map(c=>`
+    <div class="exec-cell ${c.cls||''}">
+      <div class="label">${c.label}</div>
+      <div class="val">${c.val}</div>
+      <div class="note">${c.note}</div>
+    </div>`).join('');
+
+  const b = d.book;
+  const panel = document.getElementById('bookPanel');
+  if(!b){
+    panel.innerHTML = '<div class="book"><h3>Live order book</h3><p class="bnote">Depth unavailable — markets may be closed, or your plan may not include depth for this instrument.</p></div>';
+    return;
+  }
+  const bidPct = (b.imbalance ?? 0.5) * 100;
+  panel.innerHTML = `
+    <div class="book">
+      <h3>Live order book — top 5 levels</h3>
+      <p class="bnote">Actual resting orders right now. This is the only true liquidity measure on this page, and it changes second to second.</p>
+      <div class="bookbar">
+        <div class="bid" style="width:${bidPct}%">BID ${b.bid_qty.toLocaleString('en-IN')}</div>
+        <div class="ask" style="width:${100-bidPct}%">${b.ask_qty.toLocaleString('en-IN')} ASK</div>
+      </div>
+      <div class="bookrow"><span>Best bid / ask</span><b>${b.best_bid} / ${b.best_ask}</b></div>
+      <div class="bookrow"><span>Live spread</span><b>${b.spread_pct !== null ? b.spread_pct + '%' : '—'}</b></div>
+      <div class="bookrow"><span>Resting value (bid / ask)</span><b>₹${b.bid_value_lakh}L / ₹${b.ask_value_lakh}L</b></div>
+      <div class="bookrow"><span>Book imbalance</span><b>${b.imbalance !== null ? (b.imbalance*100).toFixed(0)+'% bids' : '—'}</b></div>
+    </div>`;
+}
+
+let currentTf = 'day';
+
+document.getElementById('tfSelect').addEventListener('change', (e)=>{
+  currentTf = e.target.value;
+  load();
+  if(document.getElementById('tab-volzones').style.display !== 'none') loadVolZones(true);
+});
+
+async function load(){
+  const ladder = document.getElementById('ladder');
+  ladder.innerHTML = '<div class="loading">Analysing price structure…</div>';
+  try{
+    const res = await fetch(`/api/liquidity/${symbol}?tf=${currentTf}`);
+    if(res.status === 401){ window.location.href = '/login'; return; }
+    const d = await res.json();
+    if(d.error){
+      ladder.innerHTML = `<div class="error">${d.error}</div>`;
+      return;
+    }
+    document.getElementById('asof').textContent = `${d.timeframe_label.toUpperCase()} · ${d.bars} BARS · ${d.as_of}`;
+    document.querySelector('.sub').textContent =
+      `Structural zones on the ${d.timeframe_label.toLowerCase()} chart, nearest first.`;
+    renderExecution(d);
+
+    document.getElementById('counts').innerHTML = [
+      {label:'Gaps above', val:d.counts.fvg_down},
+      {label:'Gaps below', val:d.counts.fvg_up},
+      {label:'Buy-side pools', val:d.counts.buyside_pools},
+      {label:'Sell-side pools', val:d.counts.sellside_pools},
+      {label:'High-vol zones', val:d.counts.hvn_zones},
+      {label:'Thin zones', val:d.counts.thin_zones},
+    ].map(c=>`<div class="cell"><div class="label">${c.label}</div><div class="big">${c.val}</div></div>`).join('');
+
+    const hlFor = (z, dir) => {
+      if(!z) return `<div class="hl"><div class="hlabel">${dir}</div><div class="hval">—</div><div class="hnote">No ranked zone found.</div></div>`;
+      const sign = z.dist_pct >= 0 ? '+' : '';
+      return `<div class="hl ${dir==='Most likely above' ? 'up':'down'}">
+        <div class="hlabel">${dir}</div>
+        <div class="hval">${levelText(z)} <span style="font-size:13px;color:var(--muted);">${sign}${z.dist_pct}%</span></div>
+        <div class="hnote"><b style="color:var(--text)">${z.base_rate}%</b> of past ${d.horizon}-bar windows saw a move this far &middot; strength ${z.strength}/100 &middot; ${(z.factors||[])[0]||''}</div>
+      </div>`;
+    };
+    document.getElementById('headline').innerHTML =
+      hlFor(d.top_above, 'Most likely above') + hlFor(d.top_below, 'Most likely below');
+
+    // ladder stays in price order; ranking is shown per row
+    const above = d.zones_above.slice().sort((a,b)=>b.mid-a.mid);
+    const below = d.zones_below.slice().sort((a,b)=>b.mid-a.mid);
+
+    ladder.innerHTML =
+      (above.length ? '<div class="section-lbl">Overhead — upside objectives</div>' + above.map(renderZone).join('') : '') +
+      `<div class="zone price-row">
+         <div></div>
+         <div class="lvl">${d.ltp.toLocaleString('en-IN')}</div>
+         <div class="desc">Current price</div>
+         <div class="dist"></div>
+       </div>` +
+      (below.length ? '<div class="section-lbl">Below — retracement magnets</div>' + below.map(renderZone).join('') : '');
+
+    if(!above.length && !below.length){
+      ladder.innerHTML = '<div class="loading">No unfilled structural zones found in the lookback window.</div>';
+    }
+  }catch(e){
+    ladder.innerHTML = `<div class="error">Failed to load: ${e.message}</div>`;
+  }
+}
+load();
+</script>
+
+{{ OWNER_FOOTER|safe }}
+
+</body>
+</html>

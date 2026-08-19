@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------------------
+# SECRETS — never commit. Check this file BEFORE the first push.
+# ---------------------------------------------------------------------------
+credentials.txt
+access_token.txt
+*.env
+.env
+
+# ---------------------------------------------------------------------------
+# Generated caches — all rebuild themselves on the next scan
+# ---------------------------------------------------------------------------
+fno_oi_scan.json
+fno_oi_snapshots.json
+delivery_data.json
+delivery_history.json
+events_cache.json
+flow_history.json
+wema_scan.json
+energy_cache.json
+*.cache
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

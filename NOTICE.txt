@@ -1,0 +1,10 @@
+Market Analytics Dashboard
+Copyright (c) 2026 Amans2bmm. All rights reserved.
+
+Author:  Amans2bmm
+Created: 2026
+Scope:   Sector breadth, liquidity mapping, weekly EMA scanning,
+         sector rotation, synthetic index pricing, and F&O
+         open-interest positioning analysis.
+
+This is original independent work. See LICENSE for terms.

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ sector_name }} — Stock Quality Scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#14181C; --panel2:#1B2024; --border:#262C31;
+    --text:#E7EAEC; --muted:#8B949C; --up:#33D17A; --down:#F0554B; --amber:#E8B84B; --violet:#9B7BFF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;padding:26px 18px 70px;}
+  .wrap{max-width:1180px;margin:0 auto;}
+  .back{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:12px;}
+  .back:hover{color:var(--text);}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:8px;}
+  h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:28px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 20px;}
+
+  .summary{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px;}
+  .cell{background:var(--panel);padding:13px 14px;}
+  .cell .label{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-family:'JetBrains Mono',monospace;}
+  .cell .big{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:19px;}
+  .cell.vol .big{color:var(--amber);}
+  .cell.hvy .big{color:var(--violet);}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:11.5px;background:var(--panel);border:1px solid var(--border);color:var(--muted);padding:8px 13px;border-radius:20px;cursor:pointer;}
+  .chip:hover{color:var(--text);}
+  .chip.active{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:700;}
+  .refresh{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:8px;cursor:pointer;}
+  .refresh:hover{border-color:var(--muted);}
+  .filter-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:2px;}
+
+  .table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:900px;}
+  thead th{text-align:center;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:12px 8px;border-bottom:1px solid var(--border);font-weight:500;white-space:nowrap;}
+  thead th.left{text-align:left;padding-left:14px;}
+  thead th.grouped{border-left:1px solid var(--border);}
+  tbody td{padding:9px 8px;border-bottom:1px solid #1E2327;font-size:12.5px;font-family:'JetBrains Mono',monospace;text-align:center;white-space:nowrap;}
+  tbody td.name{font-family:'Inter',sans-serif;font-weight:600;text-align:left;padding-left:14px;font-size:13px;}
+  tbody td.grouped{border-left:1px solid #1E2327;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#171C20;}
+
+  .pill{display:inline-block;padding:2px 7px;border-radius:5px;font-weight:700;font-size:10.5px;letter-spacing:.02em;}
+  .pill.up{background:#33D17A22;color:var(--up);}
+  .pill.down{background:#F0554B22;color:var(--down);}
+  .pill.hvq{background:#E8B84B22;color:var(--amber);}
+  .pill.hvy{background:#9B7BFF22;color:var(--violet);}
+  .pill.ol{background:#33D17A22;color:var(--up);}
+  .pill.oh{background:#F0554B22;color:var(--down);}
+  .dash{color:#3A4148;}
+
+  .score{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;}
+  .scorebar{height:4px;border-radius:3px;background:var(--border);margin-top:3px;overflow:hidden;}
+  .scorebar div{height:100%;background:var(--up);}
+
+  .chg.up{color:var(--up);} .chg.down{color:var(--down);}
+  .volhi{color:var(--amber);font-weight:700;}
+
+  .loading,.error{color:var(--muted);font-size:13px;padding:20px 14px;text-align:left;}
+  .error{color:var(--down);}
+  .legend{color:var(--muted);font-size:11.5px;line-height:1.7;margin-top:16px;}
+  .legend b{color:var(--text);font-weight:600;}
+  thead th.sortable{cursor:pointer;user-select:none;}
+  thead th.sortable:hover{color:var(--text);}
+  thead th.sorted{color:var(--text);}
+  .sort-ind{display:inline-block;margin-left:4px;font-size:9px;color:var(--amber);width:8px;}
+  .fno{display:inline-block;width:16px;height:16px;line-height:16px;margin-right:7px;
+    border-radius:3px;background:#9B7BFF26;border:1px solid #9B7BFF55;color:#B9A2FF;
+    font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;text-align:center;
+    vertical-align:middle;cursor:help;}
+  .nofno{display:inline-block;width:16px;margin-right:7px;}
+  a.symlink{color:var(--text);text-decoration:none;border-bottom:1px dotted #3A4148;}
+  a.symlink:hover{color:var(--amber);border-bottom-color:var(--amber);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← All sectors</a>
+  <div class="eyebrow"><span>STOCK QUALITY SCAN</span><span id="asof">—</span></div>
+  <h1>{{ sector_name }}</h1>
+  <p class="sub">Constituents ranked by quality score — volume weighted heaviest, then trend and candle structure.</p>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="toolbar">
+    <button class="refresh" onclick="load(true)">↻ Refresh</button>
+    <span class="filter-label">Filter</span>
+    <button class="chip active" data-filter="all">All</button>
+    <button class="chip" data-filter="hvy">HVY</button>
+    <button class="chip" data-filter="hvq">HVQ+</button>
+    <button class="chip" data-filter="ol">Open=Low</button>
+    <button class="chip" data-filter="oh">Open=High</button>
+    <button class="chip" data-filter="above200">Above 200 EMA</button>
+    <button class="chip" data-filter="above20">Above 20 SMA</button>
+    <button class="chip" data-filter="fno">F&amp;O only</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="left sortable" data-sort="symbol">Stock<span class="sort-ind"></span></th>
+          <th class="sortable" data-sort="ltp">LTP<span class="sort-ind"></span></th>
+          <th class="sortable" data-sort="chg_pct">Chg%<span class="sort-ind"></span></th>
+          <th class="grouped sortable" data-sort="volume">Volume<span class="sort-ind"></span></th>
+          <th class="sortable" data-sort="vol_ratio">vs 20d avg<span class="sort-ind"></span></th>
+          <th class="sortable" data-sort="hv">HVQ / HVY<span class="sort-ind"></span></th>
+          <th class="grouped sortable" data-sort="ohl">Open=H / Open=L<span class="sort-ind"></span></th>
+          <th class="grouped sortable" data-sort="above200">200 EMA<span class="sort-ind"></span></th>
+          <th class="sortable" data-sort="above20">20 SMA<span class="sort-ind"></span></th>
+          <th class="grouped sortable" data-sort="score">Score<span class="sort-ind">▼</span></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="10" class="loading">Fetching constituents and computing indicators — this takes 10–20 seconds…</td></tr></tbody>
+    </table>
+  </div>
+
+  <p class="legend">
+    <b>HVQ</b> — today's volume is the highest of the last 63 sessions (quarter). &nbsp;
+    <b>HVY</b> — highest of the last 252 sessions (year). &nbsp;
+    <b>Open=Low</b> — opened at the day's low, buyers controlled the session. &nbsp;
+    <b>Open=High</b> — opened at the day's high, sellers controlled it. &nbsp;
+    <b>Score</b> — volume signal up to 50 pts, 200 EMA 20, 20 SMA 15, Open=Low +15 / Open=High −15. &nbsp;
+    A purple <span class="fno">F</span> marks stocks with listed futures and options — only these are covered by the Closing Auction Session, so their closing price is set by the 3:15&ndash;3:35 auction rather than a VWAP. &nbsp;
+    Click any column header to sort — click again to flip between descending and ascending.
+  </p>
+</div>
+
+<script>
+const sectorKey = "{{ sector_key }}";
+let allStocks = [];
+let activeFilter = "all";
+
+function fmtVol(v){
+  if(v >= 1e7) return (v/1e7).toFixed(2) + 'Cr';
+  if(v >= 1e5) return (v/1e5).toFixed(2) + 'L';
+  if(v >= 1e3) return (v/1e3).toFixed(1) + 'K';
+  return v;
+}
+
+function passes(s){
+  if(activeFilter === 'all') return true;
+  if(activeFilter === 'hvy') return s.hvy;
+  if(activeFilter === 'hvq') return s.hvq || s.hvy;
+  if(activeFilter === 'ol') return s.open_eq_low;
+  if(activeFilter === 'oh') return s.open_eq_high;
+  if(activeFilter === 'above200') return s.above200;
+  if(activeFilter === 'above20') return s.above20;
+  if(activeFilter === 'fno') return s.fno;
+  return true;
+}
+
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    activeFilter = chip.dataset.filter;
+    document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active', c===chip));
+    renderTable();
+  });
+});
+
+function renderSummary(sum){
+  const cells = [
+    {label:'Stocks', val:sum.total, cls:''},
+    {label:'HVQ today', val:sum.hvq, cls:'vol'},
+    {label:'HVY today', val:sum.hvy, cls:'hvy'},
+    {label:'Above 200 EMA', val:`${sum.above200}/${sum.total}`, cls:''},
+    {label:'Above 20 SMA', val:`${sum.above20}/${sum.total}`, cls:''},
+    {label:'Open=L / Open=H', val:`${sum.open_eq_low} / ${sum.open_eq_high}`, cls:''},
+    {label:'F&O eligible', val:`${sum.fno ?? 0}/${sum.total}`, cls:''},
+  ];
+  document.getElementById('summary').innerHTML = cells.map(c=>`
+    <div class="cell ${c.cls}"><div class="label">${c.label}</div><div class="big">${c.val}</div></div>
+  `).join('');
+}
+
+let sortKey = 'score';
+let sortDir = 'desc';
+
+// Turn each row into a comparable value for the given column
+function sortValue(s, key){
+  switch(key){
+    case 'symbol':   return s.symbol || '';
+    case 'fno':      return s.fno ? 1 : 0;
+    case 'hv':       return s.hvy ? 2 : (s.hvq ? 1 : 0);
+    case 'ohl':      return s.open_eq_low ? 1 : (s.open_eq_high ? -1 : 0);
+    case 'above200': return s.above200 ? 1 : 0;
+    case 'above20':  return s.above20 ? 1 : 0;
+    default:         return s[key] ?? -Infinity;
+  }
+}
+
+function applySort(rows){
+  const dir = sortDir === 'asc' ? 1 : -1;
+  const good = rows.filter(s => !s.error);
+  const bad  = rows.filter(s => s.error);   // always pinned to the bottom
+  good.sort((a, b) => {
+    const va = sortValue(a, sortKey);
+    const vb = sortValue(b, sortKey);
+    if(typeof va === 'string' || typeof vb === 'string'){
+      return String(va).localeCompare(String(vb)) * dir;
+    }
+    return (va - vb) * dir;
+  });
+  return good.concat(bad);
+}
+
+function updateSortIndicators(){
+  document.querySelectorAll('thead th.sortable').forEach(th => {
+    const ind = th.querySelector('.sort-ind');
+    if(th.dataset.sort === sortKey){
+      th.classList.add('sorted');
+      ind.textContent = sortDir === 'asc' ? '▲' : '▼';
+    }else{
+      th.classList.remove('sorted');
+      ind.textContent = '';
+    }
+  });
+}
+
+document.querySelectorAll('thead th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if(sortKey === key){
+      sortDir = sortDir === 'desc' ? 'asc' : 'desc';   // toggle direction
+    }else{
+      sortKey = key;
+      sortDir = key === 'symbol' ? 'asc' : 'desc';     // names A–Z, numbers high-first
+    }
+    updateSortIndicators();
+    renderTable();
+  });
+});
+
+function renderTable(){
+  const tbody = document.getElementById('tbody');
+  const filtered = allStocks.filter(s => s.error || passes(s));
+  const rows = applySort(filtered);
+  const shown = rows.filter(s => !s.error);
+
+  if(shown.length === 0 && activeFilter !== 'all'){
+    tbody.innerHTML = `<tr><td colspan="10" class="loading">No stocks match this filter right now.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(s=>{
+    if(s.error){
+      if(activeFilter !== 'all') return '';
+      return `<tr><td class="name">${s.symbol}</td><td colspan="9" class="error">${s.error}</td></tr>`;
+    }
+    const chgCls = (s.chg_pct ?? 0) >= 0 ? 'up' : 'down';
+    const chgTxt = s.chg_pct === null ? '—' : ((s.chg_pct>=0?'+':'') + s.chg_pct + '%');
+    const volCls = (s.vol_ratio && s.vol_ratio >= 2) ? 'volhi' : '';
+
+    let hv = '<span class="dash">—</span>';
+    if(s.hvy) hv = '<span class="pill hvy">HVY</span>';
+    else if(s.hvq) hv = '<span class="pill hvq">HVQ</span>';
+
+    let ohl = '<span class="dash">—</span>';
+    if(s.open_eq_low) ohl = '<span class="pill ol">OPEN=LOW</span>';
+    else if(s.open_eq_high) ohl = '<span class="pill oh">OPEN=HIGH</span>';
+
+    return `<tr>
+      <td class="name">${s.fno ? '<span class="fno" title="Has stock futures &amp; options">F</span>' : '<span class="nofno"></span>'}<a class="symlink" href="/liquidity/${s.symbol}">${s.symbol}</a></td>
+      <td>${s.ltp}</td>
+      <td class="chg ${chgCls}">${chgTxt}</td>
+      <td class="grouped ${volCls}">${fmtVol(s.volume)}</td>
+      <td class="${volCls}">${s.vol_ratio ? s.vol_ratio + 'x' : '—'}</td>
+      <td>${hv}</td>
+      <td class="grouped">${ohl}</td>
+      <td class="grouped">${s.above200 ? '<span class="pill up">ABOVE</span>' : '<span class="pill down">BELOW</span>'}</td>
+      <td>${s.above20 ? '<span class="pill up">ABOVE</span>' : '<span class="pill down">BELOW</span>'}</td>
+      <td class="grouped">
+        <div class="score">${s.score}</div>
+        <div class="scorebar"><div style="width:${s.score}%"></div></div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function load(force){
+  document.getElementById('tbody').innerHTML =
+    '<tr><td colspan="10" class="loading">Fetching constituents and computing indicators — this takes 10–30 seconds…</td></tr>';
+  try{
+    const res = await fetch(`/api/stocks/${sectorKey}${force ? '?force=1' : ''}`);
+    if(res.status === 401){ window.location.href = '/login'; return; }
+    const data = await res.json();
+    if(data.error){
+      document.getElementById('tbody').innerHTML = `<tr><td colspan="10" class="error">${data.error}</td></tr>`;
+      return;
+    }
+    const cacheNote = data.cached ? ` · CACHED ${data.cache_age_sec}s AGO` : '';
+    document.getElementById('asof').textContent = 'AS OF ' + data.as_of + cacheNote;
+    allStocks = data.stocks;
+    renderSummary(data.summary);
+    renderTable();
+  }catch(e){
+    document.getElementById('tbody').innerHTML = `<tr><td colspan="10" class="error">Failed to load: ${e.message}</td></tr>`;
+  }
+}
+load(false);
+</script>
+</body>
+</html>
