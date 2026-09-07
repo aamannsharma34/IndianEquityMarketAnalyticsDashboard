@@ -61,44 +61,7 @@ HVY_SESSIONS = 252   # ~1 year of trading days
 OHL_TOLERANCE = 0.001  # 0.1% — treat open within this of high/low as equal (exact ties are rare)
 
 
-def load_credentials(path="credentials.txt"):
-    creds = {}
-    if not os.path.exists(path):
-        raise FileNotFoundError(
-            f"'{path}' not found. Create it with:\n"
-            "KITE_API_KEY=your_key_here\nKITE_API_SECRET=your_secret_here"
-        )
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if "=" in line and not line.startswith("#"):
-                k, v = line.split("=", 1)
-                creds[k.strip()] = v.strip()
-    if "KITE_API_KEY" not in creds or "KITE_API_SECRET" not in creds:
-        raise ValueError("credentials.txt must contain KITE_API_KEY and KITE_API_SECRET")
-    return creds["KITE_API_KEY"], creds["KITE_API_SECRET"]
 
-
-API_KEY, API_SECRET = load_credentials()
-REDIRECT_PORT = 5000
-TOKEN_FILE = "access_token.txt"
-
-app = Flask(__name__)
-kite = KiteConnect(api_key=API_KEY)
-
-SECTOR_INDICES = {
-    # ---- Broad market indices ----
-    "nifty-50":         {"display": "Nifty 50",          "match": "NIFTY 50",         "nse": "NIFTY 50",
-                         "csv": ["ind_nifty50list.csv"], "group": "broad"},
-    # Bank Nifty sits with the broad indices: it is the second most-traded index
-    # in India and overlaps almost entirely with Pvt Bank + PSU Bank, so counting
-    # it as a sector inflated banking's share of turnover.
-    "nifty-bank":       {"display": "Nifty Bank",        "match": "NIFTY BANK",       "nse": "NIFTY BANK",
-                         "csv": ["ind_niftybanklist.csv"], "group": "broad"},
-    "nifty-midcap50":   {"display": "Nifty Midcap 50",   "match": "NIFTY MIDCAP 50",  "nse": "NIFTY MIDCAP 50",
-                         "csv": ["ind_niftymidcap50list.csv"], "group": "broad"},
-    "nifty-smallcap50": {"display": "Nifty Smallcap 50", "match": "NIFTY SMLCAP 50",  "nse": "NIFTY SMALLCAP 50",
-                         "csv": ["ind_niftysmallcap50list.csv"], "group": "broad"},
 
     # ---- Sector indices ----
     "nifty-auto":       {"display": "Nifty Auto",       "match": "NIFTY AUTO",      "nse": "NIFTY AUTO",              "csv": ["ind_niftyautolist.csv"]},
@@ -2315,6 +2278,413 @@ def fetch_energy_series(timeframe="1d"):
     return crude, gas, False
 
 
+# ===========================================================================
+# CONDOR SETUP SCAN — added 21 Aug 2026
+#
+# Finds stocks that have made a large directional move and are now range-bound
+# on drying volume. Calibrated against two supplied 4h examples (CENTRALBK and
+# ICICIGI), both of which measured ~3.05% total range width — so the default is
+# 3.2%, not the +/-3% (6% total) originally specified.
+#
+# One 60-minute fetch per symbol serves both timeframes: 1h is the raw series,
+# 4h is the same series grouped 4-up through the existing resampler. That keeps
+# the scan to a single API call per stock.
+# ===========================================================================
+CONDOR_CACHE = "condor_scan.json"
+CONDOR_PREV = "condor_prev.json"      # DAILY baseline — changed since last session
+CONDOR_LAST = "condor_last.json"      # LAST SCAN — changed since the last click
+CONDOR_SCHEMA = 1
+_condor_lock = threading.Lock()
+_condor_build = {"running": False, "done": 0, "total": 0, "stage": None,
+                 "started": None, "error": None}
+
+
+def _session_over(now=None):
+    """Has the continuous cash session finished? CAS stops matching at 15:15."""
+    now = now or datetime.datetime.now()
+    return now.time() >= datetime.time(15, 15)
+
+
+def _drop_incomplete(c4h, c1h):
+    """Remove the bar still being built.
+
+    A 4h bar scanned at 11:00 holds under half its eventual data: its range is
+    narrower and its volume lower than it will be at 13:15. Both errors point
+    the same way — the range looks TIGHTER and volume looks DRIER — so every
+    setup flatters itself mid-session and the flattery decays as the bar fills.
+    Scores would drift up all morning and drop at the close, none of it real.
+    """
+    if _session_over():
+        return c4h, c1h, False
+    today = datetime.date.today()
+
+    def _same_day(c):
+        d = c.get("date")
+        d = d.date() if hasattr(d, "date") else d
+        return d == today
+
+    if c4h and _same_day(c4h[-1]):
+        c4h = c4h[:-1]
+    if c1h and _same_day(c1h[-1]):
+        c1h = c1h[:-1]
+    return c4h, c1h, True
+
+
+def _condor_candles(token, days=80):
+    """60-minute candles for the recent window, plus the 4h grouping.
+
+    80 days covers a ~2 month move phase and range with enough left over for
+    the 20-period Bollinger warm-up on 4h (20 bars is ~10 trading days).
+    """
+    to_date = datetime.date.today()
+    from_date = to_date - datetime.timedelta(days=days)
+    raw = kite.historical_data(token, from_date, to_date, "60minute")
+    c1h = resample_candles(raw, 1)
+    c4h = resample_candles(raw, 4)
+    c4h, c1h, dropped = _drop_incomplete(c4h, c1h)
+    return c4h, c1h, dropped
+
+
+def _do_condor_scan(cfg=None):
+    import condor_scan as cd
+    cfg = cfg or {}
+    started = time.time()
+    results, forming, skipped, errors = [], [], {}, []
+
+    try:
+        emap = equity_token_map()
+        names = sorted(n for n in fno_symbols() if n in emap)
+
+        # Monthly expiries for the DTE test, and the results calendar for the
+        # event guard — writing a condor across an earnings date is the classic
+        # way to lose on a textbook-looking setup.
+        today = datetime.date.today()
+        expiries = sorted({(i["expiry"].date() if hasattr(i["expiry"], "date") else i["expiry"])
+                           for i in _nfo_instruments()
+                           if i.get("segment") == "NFO-FUT" and i.get("expiry")
+                           and (i["expiry"].date() if hasattr(i["expiry"], "date") else i["expiry"]) >= today})
+        results_by_sym = {}
+        try:
+            evs, _ = fetch_nse_events()
+            for e in evs or []:
+                sym = (e.get("symbol") or "").upper()
+                d = e.get("date")
+                if not sym or not d:
+                    continue
+                if "result" not in (e.get("purpose") or "").lower():
+                    continue
+                if sym not in results_by_sym or d < results_by_sym[sym]:
+                    results_by_sym[sym] = d
+        except Exception as e:
+            print(f"[condor] events unavailable: {type(e).__name__} — event guard off")
+
+        with _condor_lock:
+            _condor_build.update({"total": len(names), "done": 0,
+                                  "stage": "scanning"})
+
+        for n in names:
+            try:
+                c4h, c1h, _dropped = _condor_candles(emap[n])
+                r = cd.analyse(c4h, c1h, cfg)
+                if r.get("qualified"):
+                    r["name"] = n
+                    r["price"] = round(c4h[-1]["close"], 2)
+                    # Which bar this price came from. During market hours the
+                    # forming bar is excluded, so this is the last COMPLETED
+                    # bar — often the previous session's close. Without the
+                    # stamp a correct number looks like a stale one.
+                    r["as_of"] = str(c4h[-1].get("date"))[:16]
+                    # Second pass, qualifiers only: the empirical base rate needs
+                    # long daily history, which is far too expensive to fetch for
+                    # all ~210 names and pointless for the ones that failed.
+                    try:
+                        dly = kite.historical_data(
+                            emap[n], datetime.date.today() - datetime.timedelta(days=730),
+                            datetime.date.today(), "day")
+                        cd.add_stay_rate(r, dly)
+
+                        # Option fit, per expiry. Both the near month and the
+                        # 30-50 day month are reported: the framework wants the
+                        # latter, but the near month is what most people look at
+                        # first, and seeing them side by side is the point.
+                        closes = [c["close"] for c in dly]
+                        rd = results_by_sym.get(n)
+                        rdays = ((datetime.date.fromisoformat(rd) - today).days
+                                 if rd else None)
+                        ctx = {}
+                        near = expiries[0] if expiries else None
+                        pick = next((e for e in expiries if 28 <= (e - today).days <= 55), None)
+                        for lbl, exp in (("near", near), ("target", pick)):
+                            if not exp:
+                                continue
+                            oc = cd.option_context(r["consolidation"], r["price"], closes,
+                                                   (exp - today).days, rd, rdays)
+                            oc["expiry"] = exp.isoformat()
+                            oc["fit_score"] = (cd.score_option_fit(oc) or {}).get("score")
+                            oc["fit_breakdown"] = (cd.score_option_fit(oc) or {}).get("breakdown")
+                            ctx[lbl] = oc
+                        r["option_fit"] = ctx
+                        r["results_date"] = rd
+                        time.sleep(0.32)
+                    except Exception as e:
+                        r["stay_rate"] = None
+                        r["option_fit"] = None
+                        errors.append(f"{n} second-pass: {type(e).__name__}: {e}")
+                    results.append(r)
+                elif r.get("forming"):
+                    # compression underway but not yet a qualified setup — the
+                    # watchlist tier, reported rather than silently dropped
+                    r["name"] = n
+                    r["as_of"] = str(c4h[-1].get("date"))[:16] if c4h else None
+                    forming.append(r)
+                    key = r.get("skip", "unknown")
+                    key = key.split(" below ")[0] if " below " in key else key
+                    skipped[key] = skipped.get(key, 0) + 1
+                else:
+                    key = r.get("skip", "unknown")
+                    # bucket the reason, not the number, so the tally is readable
+                    key = key.split(" below ")[0] if " below " in key else key
+                    skipped[key] = skipped.get(key, 0) + 1
+            except (NameError, TypeError, KeyError, AttributeError, IndexError):
+                raise                      # programming errors must never be swallowed
+            except Exception as e:
+                errors.append(f"{n}: {type(e).__name__}")
+            finally:
+                with _condor_lock:
+                    _condor_build["done"] += 1
+                time.sleep(0.32)           # Kite rate limit
+
+        results.sort(key=lambda r: -r["score"])
+        forming.sort(key=lambda r: -r.get("early_score", 0))
+
+        # ---- transitions since the previous scan -------------------------
+        # A single scan is a snapshot and cannot tell you a range has just
+        # matured — which is the thing actually worth knowing, because it is
+        # the moment the setup becomes writable. So each scan records its own
+        # verdict per name and the next one diffs against it.
+        try:
+            with open(CONDOR_PREV) as f:
+                prev = json.load(f)
+        except Exception:
+            prev = {}
+        prev_status = prev.get("status", {})
+        prev_when = prev.get("generated_at")
+        prev_day = prev.get("day")
+
+        # Second, independent baseline: the immediately previous scan. During
+        # market hours this is the one that matters — it answers "what is
+        # deteriorating right now", which a once-a-day comparison cannot see.
+        try:
+            with open(CONDOR_LAST) as f:
+                last = json.load(f)
+        except Exception:
+            last = {}
+        last_status = last.get("status", {})
+        last_when = last.get("generated_at")
+
+        graduated = []
+        for r in results:
+            was = prev_status.get(r["name"])
+            if was is None:
+                r["transition"] = "new" if prev_status else None
+            elif was["state"] == "forming":
+                r["transition"] = "graduated"      # was watching, now a setup
+                r["was_early_score"] = was.get("score")
+                graduated.append(r["name"])
+            elif was["state"] == "qualified":
+                d = r["score"] - (was.get("score") or 0)
+                r["transition"] = ("improving" if d >= 5 else
+                                   "fading" if d <= -5 else "steady")
+                r["score_change"] = d
+            else:
+                r["transition"] = "new"
+
+            # ---- intraday: same stock, since the previous scan ----
+            wl = last_status.get(r["name"])
+            if wl and wl["state"] == "qualified":
+                ds = r["score"] - (wl.get("score") or 0)
+                r["scan_change"] = ds
+                r["scan_transition"] = ("improving" if ds >= 4 else
+                                        "fading" if ds <= -4 else "steady")
+            elif wl and wl["state"] == "forming":
+                r["scan_transition"] = "graduated"
+            else:
+                r["scan_transition"] = None
+
+        for r in forming:
+            was = prev_status.get(r["name"])
+            sc = r.get("early_score", 0)
+            if was is None:
+                r["transition"] = "new" if prev_status else None
+            elif was["state"] == "qualified":
+                r["transition"] = "dropped"        # was a setup, no longer
+            else:
+                d = sc - (was.get("score") or 0)
+                r["transition"] = ("improving" if d >= 5 else
+                                   "fading" if d <= -5 else "steady")
+                r["score_change"] = d
+
+            wl = last_status.get(r["name"])
+            if wl:
+                ds = sc - (wl.get("score") or 0)
+                r["scan_change"] = ds
+                r["scan_transition"] = ("dropped" if wl["state"] == "qualified" else
+                                        "improving" if ds >= 4 else
+                                        "fading" if ds <= -4 else "steady")
+            else:
+                r["scan_transition"] = None
+
+        # Only overwrite the baseline ONCE PER DAY. Re-running the scan an hour
+        # later would otherwise compare today against today — identical data,
+        # every transition "steady", and no badges at all, which is exactly
+        # what happened. The comparison that means something is against the
+        # last DIFFERENT trading day.
+        snapshot = {
+            **{r["name"]: {"state": "qualified", "score": r["score"]} for r in results},
+            **{r["name"]: {"state": "forming", "score": r.get("early_score", 0)} for r in forming},
+        }
+        try:
+            with open(CONDOR_LAST, "w") as f:
+                json.dump({"generated_at": datetime.datetime.now().strftime("%d %b %Y, %I:%M %p"),
+                           "status": snapshot}, f)
+        except Exception as e:
+            print(f"[condor] could not write {CONDOR_LAST}: {e}")
+
+        today_iso = datetime.date.today().isoformat()
+        if prev_day == today_iso:
+            print(f"[condor] baseline already set for {today_iso} — kept for comparison")
+        else:
+          try:
+            with open(CONDOR_PREV, "w") as f:
+                json.dump({
+                    "day": today_iso,
+                    "generated_at": datetime.datetime.now().strftime("%d %b %Y, %I:%M %p"),
+                    "status": {
+                        **{r["name"]: {"state": "qualified", "score": r["score"]} for r in results},
+                        **{r["name"]: {"state": "forming", "score": r.get("early_score", 0)} for r in forming},
+                    },
+                }, f)
+          except Exception as e:
+            print(f"[condor] could not write {CONDOR_PREV}: {e}")
+        payload = {
+            "schema": CONDOR_SCHEMA,
+            "generated_at": datetime.datetime.now().strftime("%d %b %Y, %I:%M %p"),
+            "count": len(results),
+            "universe": len(names),
+            "stocks": results,
+            "forming": forming,
+            "forming_count": len(forming),
+            "graduated": graduated,
+            "compared_with": prev_when,
+            "baseline_day": prev_day,
+            "first_scan": not bool(prev_status),
+            "last_scan_at": last_when,
+            "has_intraday_baseline": bool(last_status),
+            "skipped": dict(sorted(skipped.items(), key=lambda kv: -kv[1])),
+            "errors": errors[:20],
+            "error_count": len(errors),
+            "config": {
+                "max_width_pct": cfg.get("max_width_pct", 3.2),
+                "min_move_pct": cfg.get("min_move_pct", 10.0),
+                "min_contraction_pct": cfg.get("min_contraction_pct", 20.0),
+                "min_cons_bars": cfg.get("min_cons_bars", 10),
+                "horizon_bars": cfg.get("horizon_bars", 20),
+            },
+            "took_sec": round(time.time() - started),
+            "intraday": not _session_over(),
+            "data_as_of": (max((r.get("as_of") or "") for r in (results + forming))
+                           if (results or forming) else None),
+            "incomplete_bar_dropped": not _session_over(),
+        }
+        with open(CONDOR_CACHE, "w") as f:
+            json.dump(payload, f)
+        print(f"[condor] {len(results)} of {len(names)} qualified in {payload['took_sec']}s")
+        return payload
+    except Exception as e:
+        with _condor_lock:
+            _condor_build["error"] = f"{type(e).__name__}: {e}"
+        traceback.print_exc()
+        raise
+
+
+@app.route("/condor")
+def page_condor():
+    return render_template("condor.html")
+
+
+@app.route("/api/condor")
+def api_condor():
+    if not require_auth():
+        return jsonify({"error": "not_logged_in"}), 401
+
+    force = request.args.get("force") == "1"
+    if not force:
+        try:
+            with open(CONDOR_CACHE) as f:
+                cached = json.load(f)
+            if cached.get("schema") == CONDOR_SCHEMA:
+                cached["cached"] = True
+                return jsonify(cached)
+        except Exception:
+            pass
+
+    with _condor_lock:
+        if _condor_build["running"]:
+            return jsonify({"building": True, **_condor_build}), 202
+        _condor_build.update({"running": True, "done": 0, "total": 0,
+                              "stage": "starting", "started": time.time(),
+                              "error": None})
+
+    def run():
+        try:
+            _do_condor_scan()
+        finally:
+            with _condor_lock:
+                _condor_build["running"] = False
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"building": True, "started": True}), 202
+
+
+@app.route("/api/condor-progress")
+def api_condor_progress():
+    with _condor_lock:
+        st = dict(_condor_build)
+    if st.get("started"):
+        st["elapsed_sec"] = round(time.time() - st["started"])
+    return jsonify(st)
+
+
+@app.route("/api/probe-condor")
+def api_probe_condor():
+    """Full intermediate calculation for ONE symbol, qualified or not.
+
+    Built so a surprising result can be diagnosed from text rather than guessed
+    at — the same reason every other probe endpoint in this app exists.
+    """
+    if not require_auth():
+        return jsonify({"error": "not_logged_in"}), 401
+    import condor_scan as cd
+    sym = (request.args.get("symbol") or "").upper().strip()
+    tok = equity_token_map().get(sym)
+    if not tok:
+        return jsonify({"error": f"{sym} not found"}), 404
+    c4h, c1h, dropped_bar = _condor_candles(tok)
+    return jsonify({
+        "symbol": sym,
+        "bars_4h": len(c4h), "bars_1h": len(c1h),
+        "incomplete_bar_dropped": dropped_bar,
+        "first_4h": str(c4h[0]["date"])[:16] if c4h else None,
+        "last_4h": str(c4h[-1]["date"])[:16] if c4h else None,
+        "result": cd.analyse(c4h, c1h),
+        "raw": {
+            "consolidation": cd.detect_consolidation(c4h, 3.2, 10),
+            "squeeze_4h": cd.squeeze_state(c4h),
+            "squeeze_1h": cd.squeeze_state(c1h) if c1h else None,
+        },
+    })
+
+
 @app.route("/api/probe-mcx-contracts")
 def api_probe_mcx_contracts():
     """DIAGNOSTIC — how much history each LISTED MCX contract actually holds.
@@ -3886,6 +4256,7 @@ def _do_oi_scan(top_n=None, strikes_each_side=14, use_nse=True, nse_limit=None, 
         with _oi_lock:
             _oi_build["running"] = False
             _oi_build["stage"] = None
+            _oi_build["symbol"] = None
 
 
 NSE_INDEX_SYMBOLS = {"BANKNIFTY", "NIFTY", "FINNIFTY", "MIDCPNIFTY", "NIFTYNXT50"}
@@ -4420,11 +4791,32 @@ def api_oi_refresh_one(symbol):
     if not sym:
         return jsonify({"error": "no symbol given"}), 400
 
+    STALE_AFTER = 600      # 10 min — longer than any healthy scan
+
     with _oi_lock:
         if _oi_build["running"]:
-            return jsonify({"error": "a full scan is running — wait for it to finish",
-                            "busy": True}), 409
+            busy_sym = _oi_build.get("symbol")
+            age = time.time() - (_oi_build.get("started") or time.time())
+            # A hung fetch (NSE throttling on the delivery stage will do it)
+            # would otherwise hold this lock until the process is restarted,
+            # locking out every refresh with no way back. After STALE_AFTER
+            # the lock is treated as abandoned and taken over.
+            if age > STALE_AFTER:
+                print(f"[oi] stale lock held {age:.0f}s by "
+                      f"{busy_sym or 'full scan'} — taking over for {sym}")
+            else:
+                what = (f"a refresh of {busy_sym} is still running"
+                        if busy_sym else "a full scan is running")
+                return jsonify({
+                    "error": f"{what} ({age:.0f}s so far) — one at a time",
+                    "busy": True, "busy_symbol": busy_sym,
+                    "busy_seconds": round(age),
+                    "hint": ("Symbols NSE refuses fall back to fetching every "
+                             "strike from Kite individually, which can take a "
+                             "minute or more."),
+                }), 409
         _oi_build.update({"running": True, "done": 0, "total": 1,
+                          "symbol": sym,
                           "stage": f"refreshing {sym}", "started": time.time(),
                           "error": None})
     try:
@@ -4434,6 +4826,7 @@ def api_oi_refresh_one(symbol):
             err = _oi_build.get("error")
             _oi_build["running"] = False
             _oi_build["stage"] = None
+            _oi_build["symbol"] = None
 
     if err:
         return jsonify({"error": err, "symbol": sym}), 500
